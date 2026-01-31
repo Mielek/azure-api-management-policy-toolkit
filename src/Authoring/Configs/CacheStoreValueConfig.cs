@@ -8,6 +8,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// This policy is used to store a value in the cache using a specified key.<br/>
 /// Learn more: <a href="https://learn.microsoft.com/en-us/azure/api-management/cache-store-value-policy">cache-store-value policy</a>
 /// </summary>
+[GenerateCompiledConfig]
 public record CacheStoreValueConfig
 {
     /// <summary>

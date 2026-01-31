@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the azure-openai-token-limit and llm-token-limit policies.
 /// These policies limit the rate and/or quota of tokens consumed by AI services.
 /// </summary>
+[GenerateCompiledConfig]
 public record TokenLimitConfig
 {
     /// <summary>

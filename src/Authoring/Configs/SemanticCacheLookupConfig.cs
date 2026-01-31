@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for semantic cache lookup policies (azure-openai-semantic-cache-lookup and llm-semantic-cache-lookup).<br/>
 /// These policies use vector embeddings to find semantically similar requests in the cache.
 /// </summary>
+[GenerateCompiledConfig]
 public record SemanticCacheLookupConfig
 {
     /// <summary>

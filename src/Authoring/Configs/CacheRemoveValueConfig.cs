@@ -8,6 +8,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// This policy is used to remove an item from the cache using a specified key.<br/>
 /// Learn more: <a href="https://learn.microsoft.com/en-us/azure/api-management/cache-remove-value-policy">cache-remove-value policy</a>
 /// </summary>
+[GenerateCompiledConfig]
 public record CacheRemoveValueConfig
 {
     /// <summary>

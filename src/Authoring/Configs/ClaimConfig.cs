@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for a required claim in the JWT.
 /// </summary>
+[GenerateCompiledConfig]
 public record ClaimConfig
 {
     /// <summary>

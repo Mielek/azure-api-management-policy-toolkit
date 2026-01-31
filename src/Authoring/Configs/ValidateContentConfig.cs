@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the validate-content policy.<br/>
 /// Specifies the rules for validating the content of requests or responses.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateContentConfig
 {
     /// <summary>
@@ -46,6 +47,7 @@ public record ValidateContentConfig
 /// <summary>
 /// Configuration for mapping content types to validation rules.
 /// </summary>
+[GenerateCompiledConfig]
 public record ContentTypeMapConfig
 {
     /// <summary>
@@ -67,6 +69,7 @@ public record ContentTypeMapConfig
 /// <summary>
 /// Mapping of a content type to a validation rule.
 /// </summary>
+[GenerateCompiledConfig]
 public record ContentTypeMap
 {
     /// <summary>
@@ -88,6 +91,7 @@ public record ContentTypeMap
 /// <summary>
 /// Validation rule for a specific content type.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateContent
 {
     /// <summary>

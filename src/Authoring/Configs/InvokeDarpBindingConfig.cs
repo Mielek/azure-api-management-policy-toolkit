@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for invoking a Dapr binding.
 /// </summary>
+[GenerateCompiledConfig]
 public record InvokeDarpBindingConfig
 {
     /// <summary>

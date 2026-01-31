@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the IpFilter policy.<br/>
 /// Specifies the action to take (allow or deny), IP addresses, and/or IP address ranges.
 /// </summary>
+[GenerateCompiledConfig]
 public record IpFilterConfig
 {
     /// <summary>
@@ -30,6 +31,7 @@ public record IpFilterConfig
 /// <summary>
 /// Represents an IP address range.
 /// </summary>
+[GenerateCompiledConfig]
 public record AddressRange
 {
     /// <summary>

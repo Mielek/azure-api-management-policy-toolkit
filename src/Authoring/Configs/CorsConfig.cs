@@ -8,6 +8,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// to make requests to your API.<br/>
 /// For more information, see <a href="https://learn.microsoft.com/en-us/azure/api-management/cors-policy">CORS policy</a>.
 /// </summary>
+[GenerateCompiledConfig]
 public record CorsConfig
 {
     /// <summary>

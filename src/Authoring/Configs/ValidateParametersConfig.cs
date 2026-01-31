@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the validate-parameters policy.<br/>
 /// Specifies the validation rules for headers, query parameters, and path parameters, including actions for specified and unspecified parameters.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateParametersConfig
 {
     /// <summary>
@@ -45,6 +46,7 @@ public record ValidateParametersConfig
 /// <summary>
 /// Configuration for validating header parameters.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateHeaderParameters
 {
     /// <summary>
@@ -68,6 +70,7 @@ public record ValidateHeaderParameters
 /// <summary>
 /// Configuration for validating query parameters.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateQueryParameters
 {
     /// <summary>
@@ -91,6 +94,7 @@ public record ValidateQueryParameters
 /// <summary>
 /// Configuration for validating path parameters.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidatePathParameters
 {
     /// <summary>
@@ -108,6 +112,7 @@ public record ValidatePathParameters
 /// <summary>
 /// Configuration for a single parameter validation.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateParameter
 {
     /// <summary>

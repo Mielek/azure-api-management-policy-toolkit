@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the validate-headers policy.<br/>
 /// Specifies the validation rules for headers, including actions for specified and unspecified headers.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateHeadersConfig
 {
     /// <summary>
@@ -35,6 +36,7 @@ public record ValidateHeadersConfig
 /// <summary>
 /// Represents a header to validate.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateHeader
 {
     /// <summary>

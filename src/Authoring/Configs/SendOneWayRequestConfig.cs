@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the send-one-way-request policy.
 /// </summary>
+[GenerateCompiledConfig]
 public record SendOneWayRequestConfig
 {
     /// <summary>

@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the rate-limit policy.<br/>
 /// Specifies the maximum number of calls allowed within a specified renewal period.
 /// </summary>
+[GenerateCompiledConfig]
 public record RateLimitConfig
 {
     /// <summary>
@@ -53,6 +54,7 @@ public record RateLimitConfig
 /// <summary>
 /// Specifies rate limit configuration for a specific API.
 /// </summary>
+[GenerateCompiledConfig]
 public record ApiRateLimit : EntityLimitConfig
 {
     /// <summary>
@@ -64,6 +66,7 @@ public record ApiRateLimit : EntityLimitConfig
 /// <summary>
 /// Specifies rate limit configuration for a specific operation.
 /// </summary>
+[GenerateCompiledConfig]
 public record OperationRateLimit : EntityLimitConfig
 {
 }

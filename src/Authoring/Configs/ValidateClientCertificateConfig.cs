@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the validate-client-certificate policy.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateClientCertificateConfig
 {
     /// <summary>
@@ -42,6 +43,7 @@ public record ValidateClientCertificateConfig
 /// <summary>
 /// Represents a certificate identity for validation.
 /// </summary>
+[GenerateCompiledConfig]
 public record CertificateIdentity
 {
     /// <summary>

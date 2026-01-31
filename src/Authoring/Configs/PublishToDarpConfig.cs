@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the publish-to-dapr policy.<br />
 /// Specifies the topic, content, and other optional settings for publishing a message to a Dapr topic.
 /// </summary>
+[GenerateCompiledConfig]
 public record PublishToDarpConfig
 {
     /// <summary>

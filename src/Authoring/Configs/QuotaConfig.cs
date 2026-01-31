@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the quota policy, specifying the quota limits, renewal period, and optional API and operation-specific quotas.
 /// </summary>
+[GenerateCompiledConfig]
 public record QuotaConfig : BaseQuotaConfig
 {
     /// <summary>
@@ -22,6 +23,7 @@ public record QuotaConfig : BaseQuotaConfig
 /// <summary>
 /// Configuration for API-specific quotas.
 /// </summary>
+[GenerateCompiledConfig]
 public record ApiQuota : EntityQuotaConfig
 {
     /// <summary>
@@ -33,6 +35,7 @@ public record ApiQuota : EntityQuotaConfig
 /// <summary>
 /// Configuration for operation-specific quotas.
 /// </summary>
+[GenerateCompiledConfig]
 public record OperationQuota : EntityQuotaConfig
 {
 }

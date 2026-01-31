@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the check-header policy, which checks for the existence and value of an HTTP header in the request.
 /// </summary>
+[GenerateCompiledConfig]
 public record CheckHeaderConfig
 {
     /// <summary>

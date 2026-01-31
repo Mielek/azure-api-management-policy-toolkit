@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the get-authorization-context policy.
 /// </summary>
+[GenerateCompiledConfig]
 public record GetAuthorizationContextConfig
 {
     /// <summary>

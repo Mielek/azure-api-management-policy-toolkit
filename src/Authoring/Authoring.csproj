@@ -39,10 +39,12 @@
 
     <PropertyGroup>
         <NoWarn>1591</NoWarn> <!-- Disable warning CS1591: Missing XML comment for publicly visible type or member, should be removed in the future -->
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Analyzers\Analyzers.csproj"/>
+        <ProjectReference Include="..\Generators\Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
     <ItemGroup>

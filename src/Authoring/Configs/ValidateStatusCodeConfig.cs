@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the validate-status-code policy.<br/>
 /// Specifies the validation rules for status codes, including actions for specified and unspecified status codes.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateStatusCodeConfig
 {
     /// <summary>
@@ -29,6 +30,7 @@ public record ValidateStatusCodeConfig
 /// <summary>
 /// Represents a status code to validate.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateStatusCode
 {
     /// <summary>

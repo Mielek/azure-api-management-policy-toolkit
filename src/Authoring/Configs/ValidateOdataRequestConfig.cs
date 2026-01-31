@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the validate-odata-request policy.
 /// </summary>
+[GenerateCompiledConfig]
 public record ValidateOdataRequestConfig
 {
     /// <summary>

@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the set-body policy with content.<br />
 /// Inherits from SetBodyConfig.
 /// </summary>
+[GenerateCompiledConfig]
 public record BodyConfig : SetBodyConfig
 {
     /// <summary>

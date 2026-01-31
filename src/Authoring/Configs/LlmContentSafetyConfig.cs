@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the LLM content safety policy.
 /// </summary>
+[GenerateCompiledConfig]
 public record LlmContentSafetyConfig
 {
     /// <summary>
@@ -34,6 +35,7 @@ public record LlmContentSafetyConfig
 /// <summary>
 /// Configuration for content safety categories.
 /// </summary>
+[GenerateCompiledConfig]
 public record ContentSafetyCategories
 {
     /// <summary>
@@ -51,6 +53,7 @@ public record ContentSafetyCategories
 /// <summary>
 /// Configuration for a content safety category.
 /// </summary>
+[GenerateCompiledConfig]
 public record ContentSafetyCategory
 {
     /// <summary>
@@ -69,6 +72,7 @@ public record ContentSafetyCategory
 /// <summary>
 /// Configuration for content safety block lists.
 /// </summary>
+[GenerateCompiledConfig]
 public record ContentSafetyBlockLists
 {
     /// <summary>

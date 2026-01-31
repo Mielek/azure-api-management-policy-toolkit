@@ -8,6 +8,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Specifies the backend service details, including base URL, backend ID, Service Fabric settings, and Dapr settings.<br/>
 /// Compiled to <a href="https://learn.microsoft.com/en-us/azure/api-management/set-backend-service-policy">set-backend-service</a> policy.
 /// </summary>
+[GenerateCompiledConfig]
 public record SetBackendServiceConfig
 {
     /// <summary>

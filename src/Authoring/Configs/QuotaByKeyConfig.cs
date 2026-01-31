@@ -6,6 +6,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the quota-by-key policy.
 /// </summary>
+[GenerateCompiledConfig]
 public record QuotaByKeyConfig
 {
     /// <summary>
