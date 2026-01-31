@@ -32,7 +32,9 @@ public class LocalDeclarationStatementCompiler : ISyntaxCompiler
         var invocation = variable.Initializer?.Value as InvocationExpressionSyntax;
         var memberAccess = invocation?.Expression as MemberAccessExpressionSyntax;
         var methodName = memberAccess?.Name.ToString();
-        if (_handlers.TryGetValue(methodName, out var handler))
+        if (methodName is not null && 
+            _handlers.TryGetValue(methodName, out var handler) && 
+            invocation is not null)
         {
             handler.Handle(context, invocation, variable.Identifier.ValueText);
         }

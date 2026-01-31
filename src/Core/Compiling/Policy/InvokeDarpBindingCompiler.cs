@@ -71,7 +71,7 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
 
         foreach (InitializerValue item in mataDataValue.UnnamedValues ?? [])
         {
-            if (!item.TryGetValues<DarpMetaData>(out var mataDataValues))
+            if (!item.TryGetValues<DarpMetaData>(out var mataDataValues) || mataDataValues is null)
             {
                 context.Report(Diagnostic.Create(
                     CompilationErrors.PolicyArgumentIsNotOfRequiredType,
@@ -95,7 +95,7 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
                 continue;
             }
 
-            if (!mataDataValues.TryGetValue(nameof(DarpMetaData.Value), out var value))
+            if (!mataDataValues.TryGetValue(nameof(DarpMetaData.Value), out var value) || value.Value is null)
             {
                 context.Report(Diagnostic.Create(
                     CompilationErrors.RequiredParameterNotDefined,
@@ -106,7 +106,7 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
                 continue;
             }
 
-            mataDataElement.Value = value.Value!;
+            mataDataElement.Value = value.Value;
 
             element.Add(mataDataElement);
         }
@@ -124,7 +124,7 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
 
         XElement dataElement = new("data");
 
-        foreach (InitializerValue item in dataValue.UnnamedValues)
+        foreach (InitializerValue item in dataValue.UnnamedValues ?? [])
         {
             dataElement.Add(new XElement("item", item.Value));
         }

@@ -83,6 +83,7 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
                     "validate-azure-ad-token.decryption-keys.key",
                     nameof(DecryptionKey)
                 ));
+                continue;
             }
 
             XElement decryptionElement = new("key");

@@ -211,11 +211,11 @@ public static class ExpressionValueExtensions
     /// Creates an <see cref="ExpressionValue{T}"/> from a nullable constant, returning null if the constant is null.
     /// </summary>
     public static ExpressionValue<T>? FromNullableConstant<T>(T? value) where T : class =>
-        value is null ? null : ExpressionValue<T>.FromConstant(value);
+        value is null ? default : ExpressionValue<T>.FromConstant(value);
 
     /// <summary>
     /// Creates an <see cref="ExpressionValue{T}"/> from a nullable value type constant, returning null if the constant is null.
     /// </summary>
     public static ExpressionValue<T>? FromNullableConstant<T>(T? value) where T : struct =>
-        value.HasValue ? ExpressionValue<T>.FromConstant(value.Value) : null;
+        value.HasValue ? ExpressionValue<T>.FromConstant(value.Value) : default;
 }
