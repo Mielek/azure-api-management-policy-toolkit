@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -50,7 +51,13 @@ public class ForwardRequestCompiler : IMethodPolicyHandler
                 return;
             }
 
-            var initializer = config.Process(context);
+            var initializerResult = ExpressionProcessor.ProcessToInitializerValue(config, context);
+            if (!initializerResult.IsSuccess)
+            {
+                initializerResult.ReportAll(context);
+                return;
+            }
+            var initializer = initializerResult.Value;
             if (initializer.Type != nameof(ForwardRequestConfig))
             {
                 context.Report(Diagnostic.Create(

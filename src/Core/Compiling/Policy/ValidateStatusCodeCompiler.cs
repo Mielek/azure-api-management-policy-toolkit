@@ -2,6 +2,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -13,11 +14,13 @@ public class ValidateStatusCodeCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<ValidateStatusCodeConfig>(context, "validate-status-code",
-                out var values))
+        var configResult = ConfigurationExtractor.Extract<ValidateStatusCodeConfig>(node, context, "validate-status-code");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        var values = configResult.Value;
 
         XElement element = new("validate-status-code");
 

@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -16,11 +17,13 @@ public class LogToEventHubCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<LogToEventHubConfig>(context, "log-to-eventhub",
-                out IReadOnlyDictionary<string, InitializerValue>? values))
+        var configResult = ConfigurationExtractor.Extract<LogToEventHubConfig>(node, context, "log-to-eventhub");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
         XElement element = new("log-to-eventhub");
         if (!element.AddAttribute(values, nameof(LogToEventHubConfig.LoggerId), "logger-id"))

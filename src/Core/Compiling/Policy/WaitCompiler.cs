@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Syntax;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -55,8 +56,13 @@ public class WaitCompiler : IMethodPolicyHandler
 
         if (node.ArgumentList.Arguments.Count == 2)
         {
-            string value = node.ArgumentList.Arguments[1].Expression.ProcessParameter(context);
-            element.Add(new XAttribute("for", value));
+            var valueResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[1].Expression, context);
+            if (!valueResult.IsSuccess)
+            {
+                valueResult.ReportAll(context);
+                return;
+            }
+            element.Add(new XAttribute("for", valueResult.Value));
         }
 
         var subContext = new DocumentCompilationContext(context, element);

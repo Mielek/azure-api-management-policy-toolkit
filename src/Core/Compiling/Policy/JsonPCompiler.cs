@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -26,7 +27,12 @@ public class JsonPCompiler : IMethodPolicyHandler
             return;
         }
 
-        var value = node.ArgumentList.Arguments[0].Expression.ProcessParameter(context);
-        context.AddPolicy(new XElement("jsonp", new XAttribute("callback-parameter-name", value)));
+        var valueResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[0].Expression, context);
+        if (!valueResult.IsSuccess)
+        {
+            valueResult.ReportAll(context);
+            return;
+        }
+        context.AddPolicy(new XElement("jsonp", new XAttribute("callback-parameter-name", valueResult.Value)));
     }
 }

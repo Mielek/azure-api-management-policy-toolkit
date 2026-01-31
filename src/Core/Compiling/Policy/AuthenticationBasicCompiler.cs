@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -25,10 +26,19 @@ public class AuthenticationBasicCompiler : IMethodPolicyHandler
             return;
         }
 
-        var username = node.ArgumentList.Arguments[0].Expression.ProcessParameter(context);
-        var password = node.ArgumentList.Arguments[1].Expression.ProcessParameter(context);
-        context.AddPolicy(new XElement("authentication-basic", new XAttribute("username", username),
-            new XAttribute("password", password)));
+        var usernameResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[0].Expression, context);
+        var passwordResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[1].Expression, context);
+        var combined = Result.Combine(usernameResult, passwordResult);
+        
+        if (!combined.IsSuccess)
+        {
+            combined.ReportAll(context);
+            return;
+        }
+
+        context.AddPolicy(new XElement("authentication-basic", 
+            new XAttribute("username", usernameResult.Value),
+            new XAttribute("password", passwordResult.Value)));
     }
 
     public static void HandleBasicAuthentication(

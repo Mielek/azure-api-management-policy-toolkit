@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -16,10 +17,13 @@ public class ValidateContentCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<ValidateContentConfig>(context, "validate-content", out var values))
+        var configResult = ConfigurationExtractor.Extract<ValidateContentConfig>(node, context, "validate-content");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        var values = configResult.Value;
 
         XElement element = new("validate-content");
 

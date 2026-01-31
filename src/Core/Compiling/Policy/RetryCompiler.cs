@@ -6,6 +6,7 @@ using System.Xml.Linq;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Syntax;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -34,11 +35,13 @@ public class RetryCompiler : IMethodPolicyHandler
         }
 
         ExpressionSyntax configExpression = node.ArgumentList.Arguments[0].Expression;
-        if (!configExpression.TryExtractingConfig<RetryConfig>(context, "retry",
-                out IReadOnlyDictionary<string, InitializerValue>? config))
+        var configResult = ConfigurationExtractor.ExtractFromExpression<RetryConfig>(configExpression, context, "retry");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        IReadOnlyDictionary<string, InitializerValue> config = configResult.Value;
 
         ExpressionSyntax childPoliciesLambdaExpression = node.ArgumentList.Arguments[1].Expression;
         if (childPoliciesLambdaExpression is not LambdaExpressionSyntax lambda)

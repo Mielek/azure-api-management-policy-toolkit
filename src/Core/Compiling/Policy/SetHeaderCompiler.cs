@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -45,13 +46,24 @@ public abstract class BaseSetHeaderCompiler : IMethodPolicyHandler
 
         var element = new XElement("set-header");
 
-        var name = node.ArgumentList.Arguments[0].Expression.ProcessParameter(context);
-        element.Add(new XAttribute("name", name));
+        var nameResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[0].Expression, context);
+        if (!nameResult.IsSuccess)
+        {
+            nameResult.ReportAll(context);
+            return;
+        }
+        element.Add(new XAttribute("name", nameResult.Value));
         element.Add(new XAttribute("exists-action", _type));
 
         for (int i = 1; i < arguments.Count; i++)
         {
-            element.Add(new XElement("value", arguments[i].Expression.ProcessParameter(context)));
+            var valueResult = ExpressionProcessor.Process(arguments[i].Expression, context);
+            if (!valueResult.IsSuccess)
+            {
+                valueResult.ReportAll(context);
+                return;
+            }
+            element.Add(new XElement("value", valueResult.Value));
         }
 
         context.AddPolicy(element);

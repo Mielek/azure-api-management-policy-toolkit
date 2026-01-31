@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -16,13 +17,13 @@ public class GetAuthorizationContextCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<GetAuthorizationContextConfig>(
-                context,
-                "get-authorization-context",
-                out var values))
+        var configResult = ConfigurationExtractor.Extract<GetAuthorizationContextConfig>(node, context, "get-authorization-context");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        var values = configResult.Value;
 
         var element = new XElement("get-authorization-context");
 

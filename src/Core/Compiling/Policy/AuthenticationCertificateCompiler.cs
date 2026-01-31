@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -16,13 +17,13 @@ public class AuthenticationCertificateCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<CertificateAuthenticationConfig>(
-                context,
-                "authentication-certificate",
-                out var values))
+        var configResult = ConfigurationExtractor.Extract<CertificateAuthenticationConfig>(node, context, "authentication-certificate");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        var values = configResult.Value;
 
         var certElement = new XElement("authentication-certificate");
         if (new[]

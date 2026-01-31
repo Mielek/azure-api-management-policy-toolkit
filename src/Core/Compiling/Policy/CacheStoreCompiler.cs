@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -28,11 +29,23 @@ public class CacheStoreCompiler : IMethodPolicyHandler
 
         var element = new XElement("cache-store");
 
-        element.Add(new XAttribute("duration", arguments[0].Expression.ProcessParameter(context)));
+        var durationResult = ExpressionProcessor.Process(arguments[0].Expression, context);
+        if (!durationResult.IsSuccess)
+        {
+            durationResult.ReportAll(context);
+            return;
+        }
+        element.Add(new XAttribute("duration", durationResult.Value));
 
         if (arguments.Count == 2)
         {
-            element.Add(new XAttribute("cache-response", arguments[1].Expression.ProcessParameter(context)));
+            var cacheResponseResult = ExpressionProcessor.Process(arguments[1].Expression, context);
+            if (!cacheResponseResult.IsSuccess)
+            {
+                cacheResponseResult.ReportAll(context);
+                return;
+            }
+            element.Add(new XAttribute("cache-response", cacheResponseResult.Value));
         }
 
         context.AddPolicy(element);

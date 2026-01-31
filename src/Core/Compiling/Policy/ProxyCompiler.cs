@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -16,11 +17,13 @@ public class ProxyCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<ProxyConfig>(context, "proxy",
-                out IReadOnlyDictionary<string, InitializerValue>? values))
+        var configResult = ConfigurationExtractor.Extract<ProxyConfig>(node, context, "proxy");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
         XElement? element = HandleProxy(context, node, values);
         if (element is not null)

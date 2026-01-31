@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -26,11 +27,22 @@ public class SetBodyCompiler : IMethodPolicyHandler
             return;
         }
 
-        var value = node.ArgumentList.Arguments[0].Expression.ProcessParameter(context);
-        var element = new XElement("set-body", value);
+        var valueResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[0].Expression, context);
+        if (!valueResult.IsSuccess)
+        {
+            valueResult.ReportAll(context);
+            return;
+        }
+        var element = new XElement("set-body", valueResult.Value);
         if (node.ArgumentList.Arguments.Count == 2)
         {
-            var contentType = node.ArgumentList.Arguments[1].Expression.ProcessExpression(context);
+            var contentTypeResult = ExpressionProcessor.ProcessToInitializerValue(node.ArgumentList.Arguments[1].Expression, context);
+            if (!contentTypeResult.IsSuccess)
+            {
+                contentTypeResult.ReportAll(context);
+                return;
+            }
+            var contentType = contentTypeResult.Value;
             if (contentType is { Type: nameof(SetBodyConfig), NamedValues: not null })
             {
                 if (contentType.NamedValues.TryGetValue(nameof(SetBodyConfig.Template), out var template))

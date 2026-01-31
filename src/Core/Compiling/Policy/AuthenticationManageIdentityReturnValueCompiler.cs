@@ -4,6 +4,7 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
@@ -15,8 +16,13 @@ public class AuthenticationManageIdentityReturnValueCompiler : IReturnValueMetho
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node, string variableName)
     {
         var policy = new XElement("authentication-managed-identity");
-        var resource = node.ArgumentList.Arguments[0].Expression.ProcessParameter(context);
-        policy.Add(new XAttribute("resource", resource));
+        var resourceResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[0].Expression, context);
+        if (!resourceResult.IsSuccess)
+        {
+            resourceResult.ReportAll(context);
+            return;
+        }
+        policy.Add(new XAttribute("resource", resourceResult.Value));
         policy.Add(new XAttribute("output-token-variable-name", variableName));
 
         context.AddPolicy(policy);

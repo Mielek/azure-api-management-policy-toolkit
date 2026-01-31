@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -16,11 +17,13 @@ public class TraceCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<TraceConfig>(context, "trace",
-                out IReadOnlyDictionary<string, InitializerValue>? values))
+        var configResult = ConfigurationExtractor.Extract<TraceConfig>(node, context, "trace");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
         XElement element = new("trace");
         if (!element.AddAttribute(values, nameof(TraceConfig.Source), "source"))

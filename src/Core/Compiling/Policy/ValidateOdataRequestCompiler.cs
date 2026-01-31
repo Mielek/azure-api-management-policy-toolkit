@@ -4,6 +4,7 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
@@ -14,11 +15,13 @@ public class ValidateOdataRequestCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<ValidateOdataRequestConfig>(context, "validate-odata-request",
-                out var values))
+        var configResult = ConfigurationExtractor.Extract<ValidateOdataRequestConfig>(node, context, "validate-odata-request");
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
+        var values = configResult.Value;
 
         XElement element = new("validate-odata-request");
 

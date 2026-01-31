@@ -7,12 +7,15 @@ using Microsoft.CodeAnalysis;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling;
 
-public interface IDocumentCompilationContext
+/// <summary>
+/// Compilation context for document processing, providing access to XML generation,
+/// diagnostic reporting, and semantic analysis capabilities.
+/// </summary>
+public interface IDocumentCompilationContext : ICompilationContext
 {
     void AddPolicy(XNode element);
     void Report(Diagnostic diagnostic);
 
-    Compilation Compilation { get; }
     SyntaxNode SyntaxRoot { get; }
     IList<Diagnostic> Diagnostics { get; }
 

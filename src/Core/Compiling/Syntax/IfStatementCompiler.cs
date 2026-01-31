@@ -4,6 +4,7 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -60,7 +61,16 @@ public class IfStatementCompiler : ISyntaxCompiler
             var section = new XElement("when");
             var innerContext = new DocumentCompilationContext(context, section);
             _blockCompiler.Value.Compile(innerContext, block);
-            section.Add(new XAttribute("condition", CompilerUtils.FindCode(condition, context)));
+            
+            var conditionResult = CodeExtractor.Extract(condition, context);
+            if (!conditionResult.IsSuccess)
+            {
+                conditionResult.ReportAll(context);
+                nextIf = currentIf.Else?.Statement as IfStatementSyntax;
+                continue;
+            }
+            
+            section.Add(new XAttribute("condition", conditionResult.Value));
             choose.Add(section);
 
             nextIf = currentIf.Else?.Statement as IfStatementSyntax;

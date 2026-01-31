@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -25,8 +26,16 @@ public class FindAndReplaceCompiler : IMethodPolicyHandler
             return;
         }
 
-        var from = node.ArgumentList.Arguments[0].Expression.ProcessParameter(context);
-        var to = node.ArgumentList.Arguments[1].Expression.ProcessParameter(context);
-        context.AddPolicy(new XElement("find-and-replace", new XAttribute("from", from), new XAttribute("to", to)));
+        var fromResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[0].Expression, context);
+        var toResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[1].Expression, context);
+        var combined = Result.Combine(fromResult, toResult);
+        
+        if (!combined.IsSuccess)
+        {
+            combined.ReportAll(context);
+            return;
+        }
+        
+        context.AddPolicy(new XElement("find-and-replace", new XAttribute("from", fromResult.Value), new XAttribute("to", toResult.Value)));
     }
 }

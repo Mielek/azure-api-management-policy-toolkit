@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -26,7 +27,12 @@ public class IncludeFragmentCompiler : IMethodPolicyHandler
             return;
         }
 
-        var fragmentId = node.ArgumentList.Arguments[0].Expression.ProcessParameter(context);
-        context.AddPolicy(new XElement("include-fragment", new XAttribute("fragment-id", fragmentId)));
+        var fragmentIdResult = ExpressionProcessor.Process(node.ArgumentList.Arguments[0].Expression, context);
+        if (!fragmentIdResult.IsSuccess)
+        {
+            fragmentIdResult.ReportAll(context);
+            return;
+        }
+        context.AddPolicy(new XElement("include-fragment", new XAttribute("fragment-id", fragmentIdResult.Value)));
     }
 }

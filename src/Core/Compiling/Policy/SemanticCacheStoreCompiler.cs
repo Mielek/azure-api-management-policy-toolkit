@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -41,7 +42,13 @@ public abstract class BaseSemanticCacheStoreCompiler : IMethodPolicyHandler
         }
 
         var element = new XElement(_policyName);
-        element.Add(new XAttribute("duration", arguments[0].Expression.ProcessParameter(context)));
+        var durationResult = ExpressionProcessor.Process(arguments[0].Expression, context);
+        if (!durationResult.IsSuccess)
+        {
+            durationResult.ReportAll(context);
+            return;
+        }
+        element.Add(new XAttribute("duration", durationResult.Value));
         context.AddPolicy(element);
     }
 }

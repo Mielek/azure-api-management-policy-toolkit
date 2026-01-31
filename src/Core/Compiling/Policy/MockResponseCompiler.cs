@@ -5,6 +5,7 @@ using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -29,7 +30,13 @@ public class MockResponseCompiler : IMethodPolicyHandler
         var element = new XElement("mock-response");
         if (arguments.Count == 1)
         {
-            HandleConfig(context, element, arguments[0].Expression.ProcessExpression(context));
+            var configResult = ExpressionProcessor.ProcessToInitializerValue(arguments[0].Expression, context);
+            if (!configResult.IsSuccess)
+            {
+                configResult.ReportAll(context);
+                return;
+            }
+            HandleConfig(context, element, configResult.Value);
         }
 
         context.AddPolicy(element);
