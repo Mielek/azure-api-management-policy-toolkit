@@ -33,16 +33,8 @@ public class CacheLookupValueCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("key", config.Key.ToXmlValue()));
         element.Add(new XAttribute("variable-name", config.VariableName.ToXmlValue()));
-
-        if (config.CachingType is { } cachingType)
-        {
-            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
-        }
-
-        if (config.DefaultValue is { } defaultValue)
-        {
-            element.Add(new XAttribute("default-value", defaultValue.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("caching-type", config.CachingType);
+        element.AddOptionalAttribute("default-value", config.DefaultValue);
 
         context.AddPolicy(element);
     }

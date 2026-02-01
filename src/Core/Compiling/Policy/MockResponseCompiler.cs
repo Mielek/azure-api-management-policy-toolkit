@@ -41,9 +41,9 @@ public class MockResponseCompiler : IMethodPolicyHandler
             }
 
             var config = configResult.Value;
-            element.TryAddAttribute("status-code", config.StatusCode);
-            element.TryAddAttribute("content-type", config.ContentType);
-            element.TryAddAttribute("index", config.Index);
+            element.AddOptionalAttribute("status-code", config.StatusCode);
+            element.AddOptionalAttribute("content-type", config.ContentType);
+            element.AddOptionalAttribute("index", config.Index);
         }
 
         context.AddPolicy(element);

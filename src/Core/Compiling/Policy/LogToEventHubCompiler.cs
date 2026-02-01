@@ -48,15 +48,9 @@ public class LogToEventHubCompiler : IMethodPolicyHandler
             return;
         }
 
-        if (config.PartitionKey is { } partitionKey)
-        {
-            element.Add(new XAttribute("partition-key", partitionKey.ToXmlValue()));
-        }
-
-        if (config.PartitionId is { } partitionId)
-        {
-            element.Add(new XAttribute("partition-id", partitionId.ToXmlValue()));
-        }
+        // PartitionKey and PartitionId are mutually exclusive
+        element.AddOptionalAttribute("partition-key", config.PartitionKey);
+        element.AddOptionalAttribute("partition-id", config.PartitionId);
 
         element.Add(config.Value.ToXmlValue());
 

@@ -33,16 +33,8 @@ public class XmlToJsonCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("kind", config.Kind.ToXmlValue()));
         element.Add(new XAttribute("apply", config.Apply.ToXmlValue()));
-
-        if (config.ConsiderAcceptHeader is { } considerAcceptHeader)
-        {
-            element.Add(new XAttribute("consider-accept-header", considerAcceptHeader.ToXmlValue()));
-        }
-
-        if (config.AlwaysArrayChildElements is { } alwaysArrayChildElements)
-        {
-            element.Add(new XAttribute("always-array-child-elements", alwaysArrayChildElements.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("consider-accept-header", config.ConsiderAcceptHeader);
+        element.AddOptionalAttribute("always-array-child-elements", config.AlwaysArrayChildElements);
 
         context.AddPolicy(element);
     }

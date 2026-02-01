@@ -32,31 +32,11 @@ public class JsonToXmlCompiler : IMethodPolicyHandler
         var element = new XElement("json-to-xml");
 
         element.Add(new XAttribute("apply", config.Apply.ToXmlValue()));
-
-        if (config.ConsiderAcceptHeader is { } considerAcceptHeader)
-        {
-            element.Add(new XAttribute("consider-accept-header", considerAcceptHeader.ToXmlValue()));
-        }
-
-        if (config.ParseDate is { } parseDate)
-        {
-            element.Add(new XAttribute("parse-date", parseDate.ToXmlValue()));
-        }
-
-        if (config.NamespaceSeparator is { } namespaceSeparator)
-        {
-            element.Add(new XAttribute("namespace-separator", namespaceSeparator.ToXmlValue()));
-        }
-
-        if (config.NamespacePrefix is { } namespacePrefix)
-        {
-            element.Add(new XAttribute("namespace-prefix", namespacePrefix.ToXmlValue()));
-        }
-
-        if (config.AttributeBlockName is { } attributeBlockName)
-        {
-            element.Add(new XAttribute("attribute-block-name", attributeBlockName.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("consider-accept-header", config.ConsiderAcceptHeader);
+        element.AddOptionalAttribute("parse-date", config.ParseDate);
+        element.AddOptionalAttribute("namespace-separator", config.NamespaceSeparator);
+        element.AddOptionalAttribute("namespace-prefix", config.NamespacePrefix);
+        element.AddOptionalAttribute("attribute-block-name", config.AttributeBlockName);
 
         context.AddPolicy(element);
     }

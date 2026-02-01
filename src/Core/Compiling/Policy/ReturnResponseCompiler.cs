@@ -28,11 +28,7 @@ public class ReturnResponseCompiler : IMethodPolicyHandler
 
         var config = configResult.Value;
         var element = new XElement("return-response");
-
-        if (config.ResponseVariableName is { } responseVar)
-        {
-            element.Add(new XAttribute("response-variable-name", responseVar));
-        }
+        element.AddOptionalAttribute("response-variable-name", config.ResponseVariableName);
 
         if (config.Status is { } status)
         {

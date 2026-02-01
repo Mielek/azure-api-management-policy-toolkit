@@ -63,60 +63,18 @@ public abstract class BaseTokenLimitCompiler : IMethodPolicyHandler
             return;
         }
 
-        if (config.TokensPerMinute is { } tokensPerMinute)
-        {
-            element.Add(new XAttribute("tokens-per-minute", tokensPerMinute.ToXmlValue()));
-        }
-
-        if (config.TokenQuota is { } tokenQuota)
-        {
-            element.Add(new XAttribute("token-quota", tokenQuota.ToXmlValue()));
-        }
-
-        if (config.TokenQuotaPeriod is { } tokenQuotaPeriod)
-        {
-            element.Add(new XAttribute("token-quota-period", tokenQuotaPeriod.ToXmlValue()));
-        }
-
-        if (config.RetryAfterHeaderName is { } retryAfterHeaderName)
-        {
-            element.Add(new XAttribute("retry-after-header-name", retryAfterHeaderName.ToXmlValue()));
-        }
-
-        if (config.RetryAfterVariableName is { } retryAfterVariableName)
-        {
-            element.Add(new XAttribute("retry-after-variable-name", retryAfterVariableName.ToXmlValue()));
-        }
-
-        if (config.RemainingQuotaTokensHeaderName is { } remainingQuotaTokensHeaderName)
-        {
-            element.Add(new XAttribute("remaining-quota-tokens-header-name", remainingQuotaTokensHeaderName.ToXmlValue()));
-        }
-
-        if (config.RemainingQuotaTokensVariableName is { } remainingQuotaTokensVariableName)
-        {
-            element.Add(new XAttribute("remaining-quota-tokens-variable-name", remainingQuotaTokensVariableName.ToXmlValue()));
-        }
-
-        if (config.RemainingTokensHeaderName is { } remainingTokensHeaderName)
-        {
-            element.Add(new XAttribute("remaining-tokens-header-name", remainingTokensHeaderName.ToXmlValue()));
-        }
-
-        if (config.RemainingTokensVariableName is { } remainingTokensVariableName)
-        {
-            element.Add(new XAttribute("remaining-tokens-variable-name", remainingTokensVariableName.ToXmlValue()));
-        }
-
-        if (config.TokensConsumedHeaderName is { } tokensConsumedHeaderName)
-        {
-            element.Add(new XAttribute("tokens-consumed-header-name", tokensConsumedHeaderName.ToXmlValue()));
-        }
-
-        if (config.TokensConsumedVariableName is { } tokensConsumedVariableName)
-        {
-            element.Add(new XAttribute("tokens-consumed-variable-name", tokensConsumedVariableName.ToXmlValue()));
-        }
+        // TokensPerMinute and TokenQuota are mutually exclusive but one is required
+        element.AddOptionalAttribute("tokens-per-minute", config.TokensPerMinute);
+        element.AddOptionalAttribute("token-quota", config.TokenQuota);
+        element.AddOptionalAttribute("token-quota-period", config.TokenQuotaPeriod);
+        element.AddOptionalAttribute("retry-after-header-name", config.RetryAfterHeaderName);
+        element.AddOptionalAttribute("retry-after-variable-name", config.RetryAfterVariableName);
+        element.AddOptionalAttribute("remaining-quota-tokens-header-name", config.RemainingQuotaTokensHeaderName);
+        element.AddOptionalAttribute("remaining-quota-tokens-variable-name", config.RemainingQuotaTokensVariableName);
+        element.AddOptionalAttribute("remaining-tokens-header-name", config.RemainingTokensHeaderName);
+        element.AddOptionalAttribute("remaining-tokens-variable-name", config.RemainingTokensVariableName);
+        element.AddOptionalAttribute("tokens-consumed-header-name", config.TokensConsumedHeaderName);
+        element.AddOptionalAttribute("tokens-consumed-variable-name", config.TokensConsumedVariableName);
 
         context.AddPolicy(element);
     }

@@ -32,7 +32,7 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
         element.Add(new XAttribute("specified-parameter-action", config.SpecifiedParameterAction.ToXmlValue()));
         element.Add(new XAttribute("unspecified-parameter-action", config.UnspecifiedParameterAction.ToXmlValue()));
 
-        element.TryAddAttribute("errors-variable-name", config.ErrorsVariableName);
+        element.AddOptionalAttribute("errors-variable-name", config.ErrorsVariableName);
 
         if (config.Headers is { } headers)
         {

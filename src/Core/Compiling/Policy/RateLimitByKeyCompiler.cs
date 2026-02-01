@@ -34,41 +34,13 @@ public class RateLimitByKeyCompiler : IMethodPolicyHandler
         element.Add(new XAttribute("calls", config.Calls.ToXmlValue()));
         element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
         element.Add(new XAttribute("counter-key", config.CounterKey.ToXmlValue()));
-
-        if (config.IncrementCondition is { } incrementCondition)
-        {
-            element.Add(new XAttribute("increment-condition", incrementCondition.ToXmlValue()));
-        }
-
-        if (config.IncrementCount is { } incrementCount)
-        {
-            element.Add(new XAttribute("increment-count", incrementCount.ToXmlValue()));
-        }
-
-        if (config.RetryAfterHeaderName is { } retryAfterHeaderName)
-        {
-            element.Add(new XAttribute("retry-after-header-name", retryAfterHeaderName.ToXmlValue()));
-        }
-
-        if (config.RetryAfterVariableName is { } retryAfterVariableName)
-        {
-            element.Add(new XAttribute("retry-after-variable-name", retryAfterVariableName.ToXmlValue()));
-        }
-
-        if (config.RemainingCallsHeaderName is { } remainingCallsHeaderName)
-        {
-            element.Add(new XAttribute("remaining-calls-header-name", remainingCallsHeaderName.ToXmlValue()));
-        }
-
-        if (config.RemainingCallsVariableName is { } remainingCallsVariableName)
-        {
-            element.Add(new XAttribute("remaining-calls-variable-name", remainingCallsVariableName.ToXmlValue()));
-        }
-
-        if (config.TotalCallsHeaderName is { } totalCallsHeaderName)
-        {
-            element.Add(new XAttribute("total-calls-header-name", totalCallsHeaderName.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("increment-condition", config.IncrementCondition);
+        element.AddOptionalAttribute("increment-count", config.IncrementCount);
+        element.AddOptionalAttribute("retry-after-header-name", config.RetryAfterHeaderName);
+        element.AddOptionalAttribute("retry-after-variable-name", config.RetryAfterVariableName);
+        element.AddOptionalAttribute("remaining-calls-header-name", config.RemainingCallsHeaderName);
+        element.AddOptionalAttribute("remaining-calls-variable-name", config.RemainingCallsVariableName);
+        element.AddOptionalAttribute("total-calls-header-name", config.TotalCallsHeaderName);
 
         context.AddPolicy(element);
     }

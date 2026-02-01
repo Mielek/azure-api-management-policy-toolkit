@@ -16,8 +16,8 @@ public static class ClaimsConfigCompiler
         {
             XElement claimElement = new("claim");
             claimElement.Add(new XAttribute("name", claim.Name));
-            claimElement.TryAddAttribute("match", claim.Match);
-            claimElement.TryAddAttribute("separator", claim.Separator);
+            claimElement.AddOptionalAttribute("match", claim.Match);
+            claimElement.AddOptionalAttribute("separator", claim.Separator);
 
             if (claim.Values is { } values)
             {

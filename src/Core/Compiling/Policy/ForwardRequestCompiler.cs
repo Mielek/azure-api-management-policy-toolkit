@@ -55,14 +55,14 @@ public class ForwardRequestCompiler : IMethodPolicyHandler
                 ));
             }
 
-            element.TryAddAttribute("timeout", config.Timeout);
-            element.TryAddAttribute("timeout-ms", config.TimeoutMs);
-            element.TryAddAttribute("continue-timeout", config.ContinueTimeout);
-            element.TryAddAttribute("http-version", config.HttpVersion);
-            element.TryAddAttribute("follow-redirects", config.FollowRedirects);
-            element.TryAddAttribute("buffer-request-body", config.BufferRequestBody);
-            element.TryAddAttribute("buffer-response", config.BufferResponse);
-            element.TryAddAttribute("fail-on-error-status-code", config.FailOnErrorStatusCode);
+            element.AddOptionalAttribute("timeout", config.Timeout);
+            element.AddOptionalAttribute("timeout-ms", config.TimeoutMs);
+            element.AddOptionalAttribute("continue-timeout", config.ContinueTimeout);
+            element.AddOptionalAttribute("http-version", config.HttpVersion);
+            element.AddOptionalAttribute("follow-redirects", config.FollowRedirects);
+            element.AddOptionalAttribute("buffer-request-body", config.BufferRequestBody);
+            element.AddOptionalAttribute("buffer-response", config.BufferResponse);
+            element.AddOptionalAttribute("fail-on-error-status-code", config.FailOnErrorStatusCode);
         }
 
         context.AddPolicy(element);

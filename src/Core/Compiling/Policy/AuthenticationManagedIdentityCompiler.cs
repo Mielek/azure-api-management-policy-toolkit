@@ -32,21 +32,9 @@ public class AuthenticationManagedIdentityCompiler : IMethodPolicyHandler
         var element = new XElement("authentication-managed-identity");
 
         element.Add(new XAttribute("resource", config.Resource.ToXmlValue()));
-
-        if (config.ClientId is { } clientId)
-        {
-            element.Add(new XAttribute("client-id", clientId.ToXmlValue()));
-        }
-
-        if (config.OutputTokenVariableName is { } outputTokenVariableName)
-        {
-            element.Add(new XAttribute("output-token-variable-name", outputTokenVariableName.ToXmlValue()));
-        }
-
-        if (config.IgnoreError is { } ignoreError)
-        {
-            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("client-id", config.ClientId);
+        element.AddOptionalAttribute("output-token-variable-name", config.OutputTokenVariableName);
+        element.AddOptionalAttribute("ignore-error", config.IgnoreError);
 
         context.AddPolicy(element);
     }
@@ -57,9 +45,9 @@ public class AuthenticationManagedIdentityCompiler : IMethodPolicyHandler
     {
         XElement certElement = new("authentication-managed-identity");
         certElement.Add(new XAttribute("resource", config.Resource.ToXmlValue()));
-        certElement.TryAddAttribute("client-id", config.ClientId);
-        certElement.TryAddAttribute("output-token-variable-name", config.OutputTokenVariableName);
-        certElement.TryAddAttribute("ignore-error", config.IgnoreError);
+        certElement.AddOptionalAttribute("client-id", config.ClientId);
+        certElement.AddOptionalAttribute("output-token-variable-name", config.OutputTokenVariableName);
+        certElement.AddOptionalAttribute("ignore-error", config.IgnoreError);
         element.Add(certElement);
     }
 }

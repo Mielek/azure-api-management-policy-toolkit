@@ -55,40 +55,13 @@ public class SetBackendServiceCompiler : IMethodPolicyHandler
             element.Add(new XAttribute("backend-id", backendId.ToXmlValue()));
         }
 
-        if (config.SfResolveCondition is { } sfResolveCondition)
-        {
-            element.Add(new XAttribute("sf-resolve-condition", sfResolveCondition.ToXmlValue()));
-        }
-
-        if (config.SfServiceInstanceName is { } sfServiceInstanceName)
-        {
-            element.Add(new XAttribute("sf-service-instance-name", sfServiceInstanceName.ToXmlValue()));
-        }
-
-        if (config.SfPartitionKey is { } sfPartitionKey)
-        {
-            element.Add(new XAttribute("sf-partition-key", sfPartitionKey.ToXmlValue()));
-        }
-
-        if (config.SfListenerName is { } sfListenerName)
-        {
-            element.Add(new XAttribute("sf-listener-name", sfListenerName.ToXmlValue()));
-        }
-
-        if (config.DaprAppId is { } daprAppId)
-        {
-            element.Add(new XAttribute("dapr-app-id", daprAppId.ToXmlValue()));
-        }
-
-        if (config.DaprMethod is { } daprMethod)
-        {
-            element.Add(new XAttribute("dapr-method", daprMethod.ToXmlValue()));
-        }
-
-        if (config.DaprNamespace is { } daprNamespace)
-        {
-            element.Add(new XAttribute("dapr-namespace", daprNamespace.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("sf-resolve-condition", config.SfResolveCondition);
+        element.AddOptionalAttribute("sf-service-instance-name", config.SfServiceInstanceName);
+        element.AddOptionalAttribute("sf-partition-key", config.SfPartitionKey);
+        element.AddOptionalAttribute("sf-listener-name", config.SfListenerName);
+        element.AddOptionalAttribute("dapr-app-id", config.DaprAppId);
+        element.AddOptionalAttribute("dapr-method", config.DaprMethod);
+        element.AddOptionalAttribute("dapr-namespace", config.DaprNamespace);
 
         context.AddPolicy(element);
     }

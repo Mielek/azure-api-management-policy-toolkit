@@ -31,11 +31,7 @@ public class ValidateHeadersCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("specified-header-action", config.SpecifiedHeaderAction.ToXmlValue()));
         element.Add(new XAttribute("unspecified-header-action", config.UnspecifiedHeaderAction.ToXmlValue()));
-
-        if (config.ErrorsVariableName is { } errorsVar)
-        {
-            element.Add(new XAttribute("errors-variable-name", errorsVar));
-        }
+        element.AddOptionalAttribute("errors-variable-name", config.ErrorsVariableName);
 
         if (config.Headers is { } headers)
         {

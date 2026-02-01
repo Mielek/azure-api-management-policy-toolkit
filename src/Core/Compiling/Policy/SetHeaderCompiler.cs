@@ -78,11 +78,7 @@ public abstract class BaseSetHeaderCompiler : IMethodPolicyHandler
             var headerElement = new XElement("set-header");
             
             headerElement.Add(new XAttribute("name", config.Name.ToXmlValue()));
-            
-            if (config.ExistsAction is { } existsAction)
-            {
-                headerElement.Add(new XAttribute("exists-action", existsAction.ToXmlValue()));
-            }
+            headerElement.AddOptionalAttribute("exists-action", config.ExistsAction);
 
             if (config.Values is not null)
             {

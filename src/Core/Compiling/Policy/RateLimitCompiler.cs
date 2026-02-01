@@ -33,31 +33,11 @@ public class RateLimitCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("calls", config.Calls));
         element.Add(new XAttribute("renewal-period", config.RenewalPeriod));
-
-        if (config.RetryAfterHeaderName is { } retryAfterHeader)
-        {
-            element.Add(new XAttribute("retry-after-header-name", retryAfterHeader));
-        }
-
-        if (config.RetryAfterVariableName is { } retryAfterVar)
-        {
-            element.Add(new XAttribute("retry-after-variable-name", retryAfterVar));
-        }
-
-        if (config.RemainingCallsHeaderName is { } remainingHeader)
-        {
-            element.Add(new XAttribute("remaining-calls-header-name", remainingHeader));
-        }
-
-        if (config.RemainingCallsVariableName is { } remainingVar)
-        {
-            element.Add(new XAttribute("remaining-calls-variable-name", remainingVar));
-        }
-
-        if (config.TotalCallsHeaderName is { } totalHeader)
-        {
-            element.Add(new XAttribute("total-calls-header-name", totalHeader));
-        }
+        element.AddOptionalAttribute("retry-after-header-name", config.RetryAfterHeaderName);
+        element.AddOptionalAttribute("retry-after-variable-name", config.RetryAfterVariableName);
+        element.AddOptionalAttribute("remaining-calls-header-name", config.RemainingCallsHeaderName);
+        element.AddOptionalAttribute("remaining-calls-variable-name", config.RemainingCallsVariableName);
+        element.AddOptionalAttribute("total-calls-header-name", config.TotalCallsHeaderName);
 
         if (config.Apis is { } apis)
         {
@@ -97,20 +77,8 @@ public class RateLimitCompiler : IMethodPolicyHandler
         CompiledConfigs.EntityLimitConfig entity,
         XElement element)
     {
-        var isNameAdded = false;
-        var isIdAdded = false;
-
-        if (entity.Name is { } name)
-        {
-            element.Add(new XAttribute("name", name));
-            isNameAdded = true;
-        }
-
-        if (entity.Id is { } id)
-        {
-            element.Add(new XAttribute("id", id));
-            isIdAdded = true;
-        }
+        var isNameAdded = element.AddOptionalAttribute("name", entity.Name);
+        var isIdAdded = element.AddOptionalAttribute("id", entity.Id);
 
         if (!isNameAdded && !isIdAdded)
         {

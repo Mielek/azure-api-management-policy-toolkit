@@ -32,11 +32,7 @@ public class CacheRemoveValueCompiler : IMethodPolicyHandler
         var element = new XElement("cache-remove-value");
 
         element.Add(new XAttribute("key", config.Key.ToXmlValue()));
-
-        if (config.CachingType is { } cachingType)
-        {
-            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("caching-type", config.CachingType);
 
         context.AddPolicy(element);
     }

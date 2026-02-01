@@ -34,11 +34,7 @@ public class CacheStoreValueCompiler : IMethodPolicyHandler
         element.Add(new XAttribute("key", config.Key.ToXmlValue()));
         element.Add(new XAttribute("value", config.Value.ToXmlValue()));
         element.Add(new XAttribute("duration", config.Duration.ToXmlValue()));
-
-        if (config.CachingType is { } cachingType)
-        {
-            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("caching-type", config.CachingType);
 
         context.AddPolicy(element);
     }

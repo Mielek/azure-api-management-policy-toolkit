@@ -31,9 +31,9 @@ public class SendRequestCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("response-variable-name", config.ResponseVariableName));
 
-        element.TryAddAttribute("mode", config.Mode);
-        element.TryAddAttribute("timeout", config.Timeout);
-        element.TryAddAttribute("ignore-error", config.IgnoreError);
+        element.AddOptionalAttribute("mode", config.Mode);
+        element.AddOptionalAttribute("timeout", config.Timeout);
+        element.AddOptionalAttribute("ignore-error", config.IgnoreError);
 
         if (config.Url is { } url)
         {

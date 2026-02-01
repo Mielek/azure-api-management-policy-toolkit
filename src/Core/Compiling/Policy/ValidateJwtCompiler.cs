@@ -66,13 +66,13 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.TryAddAttribute("failed-validation-httpcode", config.FailedValidationHttpCode);
-        element.TryAddAttribute("failed-validation-error-message", config.FailedValidationErrorMessage);
-        element.TryAddAttribute("require-expiration-time", config.RequireExpirationTime);
-        element.TryAddAttribute("require-scheme", config.RequireScheme);
-        element.TryAddAttribute("require-signed-tokens", config.RequireSignedTokens);
-        element.TryAddAttribute("clock-skew", config.ClockSkew);
-        element.TryAddAttribute("output-token-variable-name", config.OutputTokenVariableName);
+        element.AddOptionalAttribute("failed-validation-httpcode", config.FailedValidationHttpCode);
+        element.AddOptionalAttribute("failed-validation-error-message", config.FailedValidationErrorMessage);
+        element.AddOptionalAttribute("require-expiration-time", config.RequireExpirationTime);
+        element.AddOptionalAttribute("require-scheme", config.RequireScheme);
+        element.AddOptionalAttribute("require-signed-tokens", config.RequireSignedTokens);
+        element.AddOptionalAttribute("clock-skew", config.ClockSkew);
+        element.AddOptionalAttribute("output-token-variable-name", config.OutputTokenVariableName);
 
         if (config.OpenIdConfigs is { } openIdConfigs)
         {
@@ -123,7 +123,7 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
         foreach (var key in keys)
         {
             var keyElement = new XElement("key");
-            keyElement.TryAddAttribute("id", key.Id);
+            keyElement.AddOptionalAttribute("id", key.Id);
 
             switch (key)
             {

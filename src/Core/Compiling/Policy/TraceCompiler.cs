@@ -33,11 +33,7 @@ public class TraceCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("source", config.Source.ToXmlValue()));
         element.Add(new XElement("message", config.Message.ToXmlValue()));
-
-        if (config.Severity is { } severity)
-        {
-            element.Add(new XAttribute("severity", severity.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("severity", config.Severity);
 
         if (config.Metadata is { } metadata)
         {

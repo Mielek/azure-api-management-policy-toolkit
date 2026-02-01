@@ -41,20 +41,13 @@ public abstract class BaseEmitTokenMetricCompiler : IMethodPolicyHandler
 
         var config = configResult.Value;
         var element = new XElement(_policyName);
-
-        if (config.Namespace is { } ns)
-        {
-            element.Add(new XAttribute("namespace", ns.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("namespace", config.Namespace);
 
         foreach (var dimConfig in config.Dimensions)
         {
             var dimensionElement = new XElement("dimension");
             dimensionElement.Add(new XAttribute("name", dimConfig.Name));
-            if (dimConfig.Value is { } value)
-            {
-                dimensionElement.Add(new XAttribute("value", value.ToXmlValue()));
-            }
+            dimensionElement.AddOptionalAttribute("value", dimConfig.Value);
             element.Add(dimensionElement);
         }
 

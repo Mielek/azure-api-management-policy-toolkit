@@ -106,16 +106,8 @@ public class SetBodyCompiler : IMethodPolicyHandler
             : content.ConstantValue?.ToString() ?? string.Empty;
         
         var bodyElement = new XElement("set-body", contentValue);
-        
-        if (config.Template is { } template)
-        {
-            bodyElement.Add(new XAttribute("template", template));
-        }
-        
-        if (config.XsiNil is { } xsiNil)
-        {
-            bodyElement.Add(new XAttribute("xsi-nil", xsiNil));
-        }
+        bodyElement.AddOptionalAttribute("template", config.Template);
+        bodyElement.AddOptionalAttribute("xsi-nil", config.XsiNil);
         
         if (config.ParseDate is { } parseDate)
         {

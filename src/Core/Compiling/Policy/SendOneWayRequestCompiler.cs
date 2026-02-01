@@ -29,8 +29,8 @@ public class SendOneWayRequestCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("send-one-way-request");
 
-        element.TryAddAttribute("mode", config.Mode);
-        element.TryAddAttribute("timeout", config.Timeout);
+        element.AddOptionalAttribute("mode", config.Mode);
+        element.AddOptionalAttribute("timeout", config.Timeout);
 
         if (config.Url is { } url)
         {

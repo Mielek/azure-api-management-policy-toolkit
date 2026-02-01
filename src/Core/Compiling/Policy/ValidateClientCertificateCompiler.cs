@@ -29,11 +29,11 @@ public class ValidateClientCertificateCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("validate-client-certificate");
 
-        element.TryAddAttribute("validate-revocation", config.ValidateRevocation);
-        element.TryAddAttribute("validate-trust", config.ValidateTrust);
-        element.TryAddAttribute("validate-not-before", config.ValidateNotBefore);
-        element.TryAddAttribute("validate-not-after", config.ValidateNotAfter);
-        element.TryAddAttribute("ignore-error", config.IgnoreError);
+        element.AddOptionalAttribute("validate-revocation", config.ValidateRevocation);
+        element.AddOptionalAttribute("validate-trust", config.ValidateTrust);
+        element.AddOptionalAttribute("validate-not-before", config.ValidateNotBefore);
+        element.AddOptionalAttribute("validate-not-after", config.ValidateNotAfter);
+        element.AddOptionalAttribute("ignore-error", config.IgnoreError);
 
         if (config.Identities is { } identities)
         {
@@ -49,14 +49,14 @@ public class ValidateClientCertificateCompiler : IMethodPolicyHandler
         foreach (var identity in identities)
         {
             XElement identityElement = new("identity");
-            identityElement.TryAddAttribute("thumbprint", identity.Thumbprint);
-            identityElement.TryAddAttribute("serial-number", identity.SerialNumber);
-            identityElement.TryAddAttribute("common-name", identity.CommonName);
-            identityElement.TryAddAttribute("subject", identity.Subject);
-            identityElement.TryAddAttribute("dns-name", identity.DnsName);
-            identityElement.TryAddAttribute("issuer-subject", identity.IssuerSubject);
-            identityElement.TryAddAttribute("issuer-thumbprint", identity.IssuerThumbprint);
-            identityElement.TryAddAttribute("issuer-certificate-id", identity.IssuerCertificateId);
+            identityElement.AddOptionalAttribute("thumbprint", identity.Thumbprint);
+            identityElement.AddOptionalAttribute("serial-number", identity.SerialNumber);
+            identityElement.AddOptionalAttribute("common-name", identity.CommonName);
+            identityElement.AddOptionalAttribute("subject", identity.Subject);
+            identityElement.AddOptionalAttribute("dns-name", identity.DnsName);
+            identityElement.AddOptionalAttribute("issuer-subject", identity.IssuerSubject);
+            identityElement.AddOptionalAttribute("issuer-thumbprint", identity.IssuerThumbprint);
+            identityElement.AddOptionalAttribute("issuer-certificate-id", identity.IssuerCertificateId);
             identitiesElement.Add(identityElement);
         }
 

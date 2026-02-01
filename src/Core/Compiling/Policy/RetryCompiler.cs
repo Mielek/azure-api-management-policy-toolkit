@@ -71,10 +71,10 @@ public class RetryCompiler : IMethodPolicyHandler
         
         element.Add(new XAttribute("condition", config.Condition.ToXmlValue()));
         element.Add(new XAttribute("count", config.Count.ToXmlValue()));
-        element.TryAddAttribute("interval", config.Interval);
-        element.TryAddAttribute("max-interval", config.MaxInterval);
-        element.TryAddAttribute("delta", config.Delta);
-        element.TryAddAttribute("first-fast-retry", config.FirstFastRetry);
+        element.AddOptionalAttribute("interval", config.Interval);
+        element.AddOptionalAttribute("max-interval", config.MaxInterval);
+        element.AddOptionalAttribute("delta", config.Delta);
+        element.AddOptionalAttribute("first-fast-retry", config.FirstFastRetry);
 
         var subContext = new DocumentCompilationContext(context, element);
         _blockCompiler.Value.Compile(subContext, lambda.Block);

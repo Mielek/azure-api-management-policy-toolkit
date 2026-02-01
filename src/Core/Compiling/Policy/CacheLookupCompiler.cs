@@ -33,26 +33,10 @@ public class CacheLookupCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("vary-by-developer", config.VaryByDeveloper.ToXmlValue()));
         element.Add(new XAttribute("vary-by-developer-groups", config.VaryByDeveloperGroups.ToXmlValue()));
-
-        if (config.CachingType is { } cachingType)
-        {
-            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
-        }
-
-        if (config.DownstreamCachingType is { } downstreamCachingType)
-        {
-            element.Add(new XAttribute("downstream-caching-type", downstreamCachingType.ToXmlValue()));
-        }
-
-        if (config.MustRevalidate is { } mustRevalidate)
-        {
-            element.Add(new XAttribute("must-revalidate", mustRevalidate.ToXmlValue()));
-        }
-
-        if (config.AllowPrivateResponseCaching is { } allowPrivateResponseCaching)
-        {
-            element.Add(new XAttribute("allow-private-response-caching", allowPrivateResponseCaching.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("caching-type", config.CachingType);
+        element.AddOptionalAttribute("downstream-caching-type", config.DownstreamCachingType);
+        element.AddOptionalAttribute("must-revalidate", config.MustRevalidate);
+        element.AddOptionalAttribute("allow-private-response-caching", config.AllowPrivateResponseCaching);
 
         if (config.VaryByHeaders is { } varyByHeaders)
         {

@@ -33,9 +33,9 @@ public class AuthenticationCertificateCompiler : IMethodPolicyHandler
 
         var count = new[]
         {
-            certElement.TryAddAttribute("thumbprint", config.Thumbprint),
-            certElement.TryAddAttribute("certificate-id", config.CertificateId),
-            certElement.TryAddAttribute("body", config.Body)
+            certElement.AddOptionalAttribute("thumbprint", config.Thumbprint),
+            certElement.AddOptionalAttribute("certificate-id", config.CertificateId),
+            certElement.AddOptionalAttribute("body", config.Body)
         }.Count(x => x);
 
         if (count != 1)
@@ -51,7 +51,7 @@ public class AuthenticationCertificateCompiler : IMethodPolicyHandler
             return;
         }
 
-        certElement.TryAddAttribute("password", config.Password);
+        certElement.AddOptionalAttribute("password", config.Password);
 
         context.AddPolicy(certElement);
     }
@@ -64,9 +64,9 @@ public class AuthenticationCertificateCompiler : IMethodPolicyHandler
 
         var count = new[]
         {
-            certElement.TryAddAttribute("thumbprint", config.Thumbprint),
-            certElement.TryAddAttribute("certificate-id", config.CertificateId),
-            certElement.TryAddAttribute("body", config.Body)
+            certElement.AddOptionalAttribute("thumbprint", config.Thumbprint),
+            certElement.AddOptionalAttribute("certificate-id", config.CertificateId),
+            certElement.AddOptionalAttribute("body", config.Body)
         }.Count(x => x);
 
         if (count != 1)
@@ -76,7 +76,7 @@ public class AuthenticationCertificateCompiler : IMethodPolicyHandler
             return;
         }
 
-        certElement.TryAddAttribute("password", config.Password);
+        certElement.AddOptionalAttribute("password", config.Password);
 
         element.Add(certElement);
     }

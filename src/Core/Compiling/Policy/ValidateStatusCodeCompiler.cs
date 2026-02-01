@@ -27,11 +27,7 @@ public class ValidateStatusCodeCompiler : IMethodPolicyHandler
         var element = new XElement("validate-status-code");
 
         element.Add(new XAttribute("unspecified-status-code-action", config.UnspecifiedStatusCodeAction.ToXmlValue()));
-
-        if (config.ErrorVariableName is { } errorVariableName)
-        {
-            element.Add(new XAttribute("error-variable-name", errorVariableName));
-        }
+        element.AddOptionalAttribute("error-variable-name", config.ErrorVariableName);
 
         if (config.StatusCodes is { } statusCodes)
         {

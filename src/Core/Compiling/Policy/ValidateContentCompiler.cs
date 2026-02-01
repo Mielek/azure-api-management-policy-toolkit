@@ -32,11 +32,7 @@ public class ValidateContentCompiler : IMethodPolicyHandler
         element.Add(new XAttribute("unspecified-content-type-action", config.UnspecifiedContentTypeAction.ToXmlValue()));
         element.Add(new XAttribute("max-size", config.MaxSize.ToXmlValue()));
         element.Add(new XAttribute("size-exceeded-action", config.SizeExceededAction.ToXmlValue()));
-
-        if (config.ErrorsVariableName is { } errorsVar)
-        {
-            element.Add(new XAttribute("errors-variable-name", errorsVar));
-        }
+        element.AddOptionalAttribute("errors-variable-name", config.ErrorsVariableName);
 
         if (config.ContentTypeMap is { } contentTypeMap)
         {
@@ -54,16 +50,8 @@ public class ValidateContentCompiler : IMethodPolicyHandler
     private static void HandleContentTypeMap(CompiledConfigs.ContentTypeMapConfig contentTypeMap, XElement parentElement)
     {
         XElement mapElement = new("content-type-map");
-        
-        if (contentTypeMap.AnyContentTypeValue is { } anyContentType)
-        {
-            mapElement.Add(new XAttribute("any-content-type-value", anyContentType));
-        }
-        
-        if (contentTypeMap.MissingContentTypeValue is { } missingContentType)
-        {
-            mapElement.Add(new XAttribute("missing-content-type-value", missingContentType));
-        }
+        mapElement.AddOptionalAttribute("any-content-type-value", contentTypeMap.AnyContentTypeValue);
+        mapElement.AddOptionalAttribute("missing-content-type-value", contentTypeMap.MissingContentTypeValue);
 
         if (contentTypeMap.Types is { } types)
         {
@@ -71,16 +59,8 @@ public class ValidateContentCompiler : IMethodPolicyHandler
             {
                 XElement typeElement = new("type");
                 typeElement.Add(new XAttribute("to", typeMap.To));
-                
-                if (typeMap.From is { } from)
-                {
-                    typeElement.Add(new XAttribute("from", from));
-                }
-                
-                if (typeMap.When is { } when)
-                {
-                    typeElement.Add(new XAttribute("when", when.ToXmlValue()));
-                }
+                typeElement.AddOptionalAttribute("from", typeMap.From);
+                typeElement.AddOptionalAttribute("when", typeMap.When);
 
                 mapElement.Add(typeElement);
             }
@@ -96,21 +76,9 @@ public class ValidateContentCompiler : IMethodPolicyHandler
             XElement contentElement = new("content");
             contentElement.Add(new XAttribute("validate-as", validateContent.ValidateAs));
             contentElement.Add(new XAttribute("action", validateContent.Action.ToXmlValue()));
-            
-            if (validateContent.Type is { } type)
-            {
-                contentElement.Add(new XAttribute("type", type));
-            }
-            
-            if (validateContent.SchemaId is { } schemaId)
-            {
-                contentElement.Add(new XAttribute("schema-id", schemaId));
-            }
-            
-            if (validateContent.SchemaRef is { } schemaRef)
-            {
-                contentElement.Add(new XAttribute("schema-ref", schemaRef));
-            }
+            contentElement.AddOptionalAttribute("type", validateContent.Type);
+            contentElement.AddOptionalAttribute("schema-id", validateContent.SchemaId);
+            contentElement.AddOptionalAttribute("schema-ref", validateContent.SchemaRef);
             
             if (validateContent.AllowAdditionalProperties is { } allowAdditional)
             {

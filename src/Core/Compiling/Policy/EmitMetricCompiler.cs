@@ -30,25 +30,14 @@ public class EmitMetricCompiler : IMethodPolicyHandler
         var element = new XElement("emit-metric");
 
         element.Add(new XAttribute("name", config.Name));
-
-        if (config.Value is { } metricValue)
-        {
-            element.Add(new XAttribute("value", metricValue.ToXmlValue()));
-        }
-
-        if (config.Namespace is { } ns)
-        {
-            element.Add(new XAttribute("namespace", ns));
-        }
+        element.AddOptionalAttribute("value", config.Value);
+        element.AddOptionalAttribute("namespace", config.Namespace);
 
         foreach (var dimConfig in config.Dimensions)
         {
             var dimensionElement = new XElement("dimension");
             dimensionElement.Add(new XAttribute("name", dimConfig.Name));
-            if (dimConfig.Value is { } value)
-            {
-                dimensionElement.Add(new XAttribute("value", value.ToXmlValue()));
-            }
+            dimensionElement.AddOptionalAttribute("value", dimConfig.Value);
             element.Add(dimensionElement);
         }
 

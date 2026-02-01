@@ -30,36 +30,12 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
         var element = new XElement("invoke-darp-binding");
 
         element.Add(new XAttribute("name", config.Name.ToXmlValue()));
-
-        if (config.Operation is { } operation)
-        {
-            element.Add(new XAttribute("operation", operation));
-        }
-
-        if (config.IgnoreError is { } ignoreError)
-        {
-            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
-        }
-
-        if (config.ResponseVariableName is { } responseVariableName)
-        {
-            element.Add(new XAttribute("response-variable-name", responseVariableName));
-        }
-
-        if (config.Timeout is { } timeout)
-        {
-            element.Add(new XAttribute("timeout", timeout.ToXmlValue()));
-        }
-
-        if (config.Template is { } template)
-        {
-            element.Add(new XAttribute("template", template));
-        }
-
-        if (config.ContentType is { } contentType)
-        {
-            element.Add(new XAttribute("content-type", contentType));
-        }
+        element.AddOptionalAttribute("operation", config.Operation);
+        element.AddOptionalAttribute("ignore-error", config.IgnoreError);
+        element.AddOptionalAttribute("response-variable-name", config.ResponseVariableName);
+        element.AddOptionalAttribute("timeout", config.Timeout);
+        element.AddOptionalAttribute("template", config.Template);
+        element.AddOptionalAttribute("content-type", config.ContentType);
 
         if (config.MetaData is { } metaData)
         {

@@ -30,16 +30,8 @@ public class CorsCompiler : IMethodPolicyHandler
 
         var config = configResult.Value;
         var element = new XElement("cors");
-
-        if (config.AllowCredentials is { } allowCredentials)
-        {
-            element.Add(new XAttribute("allow-credentials", allowCredentials.ToXmlValue()));
-        }
-
-        if (config.TerminateUnmatchedRequest is { } terminate)
-        {
-            element.Add(new XAttribute("terminate-unmatched-request", terminate.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("allow-credentials", config.AllowCredentials);
+        element.AddOptionalAttribute("terminate-unmatched-request", config.TerminateUnmatchedRequest);
 
         var origins = config.AllowedOrigins
             .Select(origin => new XElement("origin", origin.ToXmlValue()))
@@ -76,10 +68,7 @@ public class CorsCompiler : IMethodPolicyHandler
         if (config.AllowedMethods is { } allowedMethods)
         {
             var allowedMethodsElement = new XElement("allowed-methods");
-            if (config.PreflightResultMaxAge is { } maxAge)
-            {
-                allowedMethodsElement.Add(new XAttribute("preflight-result-max-age", maxAge.ToXmlValue()));
-            }
+            allowedMethodsElement.AddOptionalAttribute("preflight-result-max-age", config.PreflightResultMaxAge);
 
             var methods = allowedMethods
                 .Select(m => new XElement("method", m.ToXmlValue()))

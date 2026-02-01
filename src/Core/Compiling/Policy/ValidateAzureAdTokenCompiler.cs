@@ -31,12 +31,12 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("tenant-id", config.TenantId.ToXmlValue()));
 
-        element.TryAddAttribute("header-name", config.HeaderName);
-        element.TryAddAttribute("query-parameter-name", config.QueryParameterName);
-        element.TryAddAttribute("token-value", config.TokenValue);
-        element.TryAddAttribute("failed-validation-httpcode", config.FailedValidationHttpCode);
-        element.TryAddAttribute("failed-validation-error-message", config.FailedValidationErrorMessage);
-        element.TryAddAttribute("output-token-variable-name", config.OutputTokenVariableName);
+        element.AddOptionalAttribute("header-name", config.HeaderName);
+        element.AddOptionalAttribute("query-parameter-name", config.QueryParameterName);
+        element.AddOptionalAttribute("token-value", config.TokenValue);
+        element.AddOptionalAttribute("failed-validation-httpcode", config.FailedValidationHttpCode);
+        element.AddOptionalAttribute("failed-validation-error-message", config.FailedValidationErrorMessage);
+        element.AddOptionalAttribute("output-token-variable-name", config.OutputTokenVariableName);
 
         if (config.BackendApplicationIds is { } backendIds)
         {

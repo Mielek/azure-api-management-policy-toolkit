@@ -48,16 +48,8 @@ public abstract class BaseSemanticCacheLookupCompiler : IMethodPolicyHandler
         element.Add(new XAttribute("score-threshold", config.ScoreThreshold.ToXmlValue()));
         element.Add(new XAttribute("embeddings-backend-id", config.EmbeddingsBackendId.ToXmlValue()));
         element.Add(new XAttribute("embeddings-backend-auth", config.EmbeddingsBackendAuth.ToXmlValue()));
-
-        if (config.IgnoreSystemMessages is { } ignoreSystemMessages)
-        {
-            element.Add(new XAttribute("ignore-system-messages", ignoreSystemMessages.ToXmlValue()));
-        }
-
-        if (config.MaxMessageCount is { } maxMessageCount)
-        {
-            element.Add(new XAttribute("max-message-count", maxMessageCount.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("ignore-system-messages", config.IgnoreSystemMessages);
+        element.AddOptionalAttribute("max-message-count", config.MaxMessageCount);
 
         if (config.VaryBy is not null)
         {

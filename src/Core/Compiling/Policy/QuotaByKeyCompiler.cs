@@ -48,32 +48,14 @@ public class QuotaByKeyCompiler : IMethodPolicyHandler
             return;
         }
 
-        if (config.Calls is { } calls)
-        {
-            element.Add(new XAttribute("calls", calls.ToXmlValue()));
-        }
-
-        if (config.Bandwidth is { } bandwidth)
-        {
-            element.Add(new XAttribute("bandwidth", bandwidth.ToXmlValue()));
-        }
+        // Calls and Bandwidth are mutually optional but at least one is required
+        element.AddOptionalAttribute("calls", config.Calls);
+        element.AddOptionalAttribute("bandwidth", config.Bandwidth);
 
         element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
-
-        if (config.IncrementCondition is { } incrementCondition)
-        {
-            element.Add(new XAttribute("increment-condition", incrementCondition.ToXmlValue()));
-        }
-
-        if (config.IncrementCount is { } incrementCount)
-        {
-            element.Add(new XAttribute("increment-count", incrementCount.ToXmlValue()));
-        }
-
-        if (config.FirstPeriodStart is { } firstPeriodStart)
-        {
-            element.Add(new XAttribute("first-period-start", firstPeriodStart.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("increment-condition", config.IncrementCondition);
+        element.AddOptionalAttribute("increment-count", config.IncrementCount);
+        element.AddOptionalAttribute("first-period-start", config.FirstPeriodStart);
 
         context.AddPolicy(element);
     }

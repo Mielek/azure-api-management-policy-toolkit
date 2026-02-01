@@ -28,31 +28,11 @@ public class ValidateOdataRequestCompiler : IMethodPolicyHandler
 
         var config = configResult.Value;
         XElement element = new("validate-odata-request");
-
-        if (config.ErrorVariableName is { } errorVariableName)
-        {
-            element.Add(new XAttribute("error-variable-name", errorVariableName.ToXmlValue()));
-        }
-
-        if (config.DefaultOdataVersion is { } defaultOdataVersion)
-        {
-            element.Add(new XAttribute("default-odata-version", defaultOdataVersion.ToXmlValue()));
-        }
-
-        if (config.MinOdataVersion is { } minOdataVersion)
-        {
-            element.Add(new XAttribute("min-odata-version", minOdataVersion.ToXmlValue()));
-        }
-
-        if (config.MaxOdataVersion is { } maxOdataVersion)
-        {
-            element.Add(new XAttribute("max-odata-version", maxOdataVersion.ToXmlValue()));
-        }
-
-        if (config.MaxSize is { } maxSize)
-        {
-            element.Add(new XAttribute("max-size", maxSize.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("error-variable-name", config.ErrorVariableName);
+        element.AddOptionalAttribute("default-odata-version", config.DefaultOdataVersion);
+        element.AddOptionalAttribute("min-odata-version", config.MinOdataVersion);
+        element.AddOptionalAttribute("max-odata-version", config.MaxOdataVersion);
+        element.AddOptionalAttribute("max-size", config.MaxSize);
 
         context.AddPolicy(element);
     }

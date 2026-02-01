@@ -33,36 +33,12 @@ public class PublishToDarpCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("topic", config.Topic.ToXmlValue()));
         element.Value = config.Content.ToXmlValue();
-
-        if (config.PubSubName is { } pubSubName)
-        {
-            element.Add(new XAttribute("pub-sub-name", pubSubName.ToXmlValue()));
-        }
-
-        if (config.IgnoreError is { } ignoreError)
-        {
-            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
-        }
-
-        if (config.ResponseVariableName is { } responseVariableName)
-        {
-            element.Add(new XAttribute("response-variable-name", responseVariableName.ToXmlValue()));
-        }
-
-        if (config.Timeout is { } timeout)
-        {
-            element.Add(new XAttribute("timeout", timeout.ToXmlValue()));
-        }
-
-        if (config.Template is { } template)
-        {
-            element.Add(new XAttribute("template", template.ToXmlValue()));
-        }
-
-        if (config.ContentType is { } contentType)
-        {
-            element.Add(new XAttribute("content-type", contentType.ToXmlValue()));
-        }
+        element.AddOptionalAttribute("pub-sub-name", config.PubSubName);
+        element.AddOptionalAttribute("ignore-error", config.IgnoreError);
+        element.AddOptionalAttribute("response-variable-name", config.ResponseVariableName);
+        element.AddOptionalAttribute("timeout", config.Timeout);
+        element.AddOptionalAttribute("template", config.Template);
+        element.AddOptionalAttribute("content-type", config.ContentType);
 
         context.AddPolicy(element);
     }
