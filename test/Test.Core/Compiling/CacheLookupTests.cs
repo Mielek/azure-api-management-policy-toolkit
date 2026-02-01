@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling;
@@ -249,7 +249,7 @@ public class CacheLookupTests
                     VaryByHeaders = ["Accept", VaryByHeader(context.ExpressionContext)],
                 });
             }
-            bool VaryByHeader(IExpressionContext context) => context.User.Email.EndsWith("@contoso.example") ? "X-User-Id" : "X-User-Name";
+            string VaryByHeader(IExpressionContext context) => context.User.Email.EndsWith("@contoso.example") ? "X-User-Id" : "X-User-Name";
         }
         """,
         """
@@ -278,7 +278,7 @@ public class CacheLookupTests
                     VaryByQueryParameters = ["id", VaryByParameter(context.ExpressionContext)],
                 });
             }
-            bool VaryByParameter(IExpressionContext context) => context.User.Email.EndsWith("@contoso.example") ? "userId" : "username";
+            string VaryByParameter(IExpressionContext context) => context.User.Email.EndsWith("@contoso.example") ? "userId" : "username";
         }
         """,
         """

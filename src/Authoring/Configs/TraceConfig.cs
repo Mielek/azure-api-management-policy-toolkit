@@ -41,10 +41,12 @@ public record TraceMetadata
     /// <summary>
     /// The name of the metadata item.
     /// </summary>
+    [ExpressionAllowed]
     public required string Name { get; init; }
 
     /// <summary>
     /// The value of the metadata item.
     /// </summary>
+    [ExpressionAllowed]
     public required string Value { get; init; }
 }

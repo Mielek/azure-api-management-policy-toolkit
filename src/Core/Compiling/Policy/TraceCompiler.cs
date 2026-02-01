@@ -17,17 +17,9 @@ public class TraceCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.Trace);
 
-    private sealed class LocalTraceCompiledConfig
-    {
-        public required ExpressionValue<string> Source { get; init; }
-        public required ExpressionValue<string> Message { get; init; }
-        public ExpressionValue<string>? Severity { get; init; }
-        public InitializerValue? Metadata { get; init; }
-    }
-
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalTraceCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.TraceConfig>(
             node, context, "trace");
 
         if (!configResult.IsSuccess)
@@ -49,42 +41,15 @@ public class TraceCompiler : IMethodPolicyHandler
 
         if (config.Metadata is { } metadata)
         {
-            HandleMetadata(context, metadata, element);
+            foreach (var data in metadata)
+            {
+                var metadataElement = new XElement("metadata");
+                metadataElement.Add(new XAttribute("name", data.Name.ToXmlValue()));
+                metadataElement.Add(new XAttribute("value", data.Value.ToXmlValue()));
+                element.Add(metadataElement);
+            }
         }
 
         context.AddPolicy(element);
-    }
-
-    private static void HandleMetadata(IDocumentCompilationContext context, InitializerValue metadataValue,
-        XElement parentElement)
-    {
-        foreach (var dataValue in metadataValue.UnnamedValues ?? [])
-        {
-            if (dataValue.Node is not ExpressionSyntax dataExpression)
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    dataValue.Node.GetLocation(),
-                    "trace.metadata",
-                    nameof(TraceMetadata)
-                ));
-                continue;
-            }
-
-            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.TraceMetadata>(
-                dataExpression, context, "trace.metadata");
-
-            if (!configResult.IsSuccess)
-            {
-                configResult.ReportAll(context);
-                continue;
-            }
-
-            var config = configResult.Value;
-            var metadataElement = new XElement("metadata");
-            metadataElement.Add(new XAttribute("name", config.Name.ToXmlValue()));
-            metadataElement.Add(new XAttribute("value", config.Value.ToXmlValue()));
-            parentElement.Add(metadataElement);
-        }
     }
 }

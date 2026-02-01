@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Xml.Linq;
@@ -17,16 +17,9 @@ public class IpFilterCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.IpFilter);
 
-    private sealed class LocalIpFilterCompiledConfig
-    {
-        public required ExpressionValue<string> Action { get; init; }
-        public InitializerValue? Addresses { get; init; }
-        public InitializerValue? AddressRanges { get; init; }
-    }
-
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalIpFilterCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.IpFilterConfig>(
             node, context, "ip-filter");
 
         if (!configResult.IsSuccess)
@@ -43,42 +36,18 @@ public class IpFilterCompiler : IMethodPolicyHandler
         bool atLeastOneAddress = false;
         if (config.Addresses is { } addresses)
         {
-            foreach (var address in addresses.UnnamedValues ?? [])
+            foreach (var address in addresses)
             {
-                if (address.Value is not null)
-                {
-                    element.Add(new XElement("address", address.Value));
-                    atLeastOneAddress = true;
-                }
+                element.Add(new XElement("address", address.ToXmlValue()));
+                atLeastOneAddress = true;
             }
         }
 
         bool atLeastOneRange = false;
         if (config.AddressRanges is { } addressRanges)
         {
-            foreach (var range in addressRanges.UnnamedValues ?? [])
+            foreach (var rangeConfig in addressRanges)
             {
-                if (range.Node is not ExpressionSyntax rangeExpression)
-                {
-                    context.Report(Diagnostic.Create(
-                        CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                        range.Node.GetLocation(),
-                        "ip-filter.address-range",
-                        nameof(AddressRange)
-                    ));
-                    continue;
-                }
-
-                var rangeConfigResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.AddressRange>(
-                    rangeExpression, context, "ip-filter.address-range");
-
-                if (!rangeConfigResult.IsSuccess)
-                {
-                    rangeConfigResult.ReportAll(context);
-                    continue;
-                }
-
-                var rangeConfig = rangeConfigResult.Value;
                 var rangeElement = new XElement("address-range");
                 rangeElement.Add(new XAttribute("from", rangeConfig.From.ToXmlValue()));
                 rangeElement.Add(new XAttribute("to", rangeConfig.To.ToXmlValue()));

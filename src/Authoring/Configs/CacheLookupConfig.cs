@@ -54,11 +54,13 @@ public record CacheLookupConfig
     /// Specifies HTTP headers that should be used to differentiate cache entries.<br/>
     /// For example, caching separately based on Accept or Accept-Language headers allows for content negotiation.
     /// </summary>
+    [ExpressionAllowed]
     public string[]? VaryByHeaders { get; init; }
 
     /// <summary>
     /// Specifies query parameters that should be used to differentiate cache entries.<br/>
     /// For example, caching separately based on "id" or "page" parameters allows responses to be cached per resource identifier.
     /// </summary>
+    [ExpressionAllowed]
     public string[]? VaryByQueryParameters { get; init; }
 }

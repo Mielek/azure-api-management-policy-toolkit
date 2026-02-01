@@ -11,105 +11,79 @@ namespace Test.Generators;
 public class GeneratedConfigTests
 {
     [TestMethod]
-    public void TestSimpleConfig_ShouldExist()
+    public void CompiledConfig_ShouldExist_ForManagedIdentityAuthenticationConfig()
     {
         // Arrange & Act - This will fail to compile if the generated class doesn't exist
-        var config = new CompiledConfigs.TestSimpleConfig
+        // Resource has [ExpressionAllowed], so it's ExpressionValue<string>
+        // OutputTokenVariableName and IgnoreError don't have [ExpressionAllowed], so they're plain types
+        var config = new CompiledConfigs.ManagedIdentityAuthenticationConfig
         {
-            Name = ExpressionValue<string>.FromConstant("test"),
-            OptionalValue = ExpressionValue<string>.FromExpression("@(context.Request.Headers[\"X-Test\"])"),
-            Count = ExpressionValue<int>.FromConstant(42),
-            IsEnabled = ExpressionValue<bool>.FromConstant(true)
+            Resource = ExpressionValue<string>.FromConstant("https://management.azure.com/"),
+            ClientId = ExpressionValue<string>.FromExpression("@(context.Request.Headers[\"X-Client-Id\"])"),
+            OutputTokenVariableName = "token",
+            IgnoreError = true
         };
 
         // Assert
-        config.Name.IsConstant.Should().BeTrue();
-        config.Name.ConstantValue.Should().Be("test");
+        config.Resource.IsConstant.Should().BeTrue();
+        config.Resource.ConstantValue.Should().Be("https://management.azure.com/");
         
-        config.OptionalValue.Should().NotBeNull();
-        config.OptionalValue!.Value.IsExpression.Should().BeTrue();
+        config.ClientId.Should().NotBeNull();
+        config.ClientId!.Value.IsExpression.Should().BeTrue();
         
-        config.Count.ConstantValue.Should().Be(42);
-        config.IsEnabled.ConstantValue.Should().BeTrue();
+        config.OutputTokenVariableName.Should().Be("token");
+        config.IgnoreError.Should().Be(true);
     }
 
     [TestMethod]
-    public void TestSimpleConfig_WithNullOptional_ShouldWork()
+    public void CompiledConfig_ShouldSupportExpressions_ForExpressionAllowedProperties()
     {
-        // Arrange & Act
-        var config = new CompiledConfigs.TestSimpleConfig
+        // Arrange & Act - Resource has [ExpressionAllowed] so it can hold expressions
+        var config = new CompiledConfigs.ManagedIdentityAuthenticationConfig
         {
-            Name = ExpressionValue<string>.FromConstant("test"),
-            OptionalValue = null,
-            Count = ExpressionValue<int>.FromConstant(0),
-            IsEnabled = ExpressionValue<bool>.FromConstant(false)
+            Resource = ExpressionValue<string>.FromExpression("@(context.Request.Headers[\"X-Resource\"])"),
+            OutputTokenVariableName = null,
+            IgnoreError = null
         };
 
         // Assert
-        config.OptionalValue.Should().BeNull();
+        config.Resource.IsExpression.Should().BeTrue();
+        config.Resource.Expression.Should().Be("@(context.Request.Headers[\"X-Resource\"])");
     }
 
     [TestMethod]
-    public void TestEnumConfig_ShouldExist()
+    public void CompiledConfig_ExpressionAllowedCollectionProperty_ShouldExist()
     {
-        // Arrange & Act
-        var config = new CompiledConfigs.TestEnumConfig
+        // Arrange & Act - Values has [ExpressionAllowed] and is a string[]
+        // So the compiled config should have IReadOnlyList<ExpressionValue<string>>
+        var config = new CompiledConfigs.CheckHeaderConfig
         {
-            Action = ExpressionValue<TestActionType>.FromConstant(TestActionType.Override),
-            OptionalAction = ExpressionValue<TestActionType>.FromExpression("@(GetAction())")
+            Name = ExpressionValue<string>.FromConstant("X-Custom-Header"),
+            FailCheckHttpCode = ExpressionValue<int>.FromConstant(400),
+            FailCheckErrorMessage = ExpressionValue<string>.FromConstant("Missing header"),
+            IgnoreCase = ExpressionValue<bool>.FromConstant(true),
+            Values = new[] { ExpressionValue<string>.FromConstant("allowed-value") }
         };
 
         // Assert
-        config.Action.ConstantValue.Should().Be(TestActionType.Override);
-        config.OptionalAction.Should().NotBeNull();
-        config.OptionalAction!.Value.IsExpression.Should().BeTrue();
+        config.Name.ConstantValue.Should().Be("X-Custom-Header");
+        config.Values.Should().HaveCount(1);
+        config.Values[0].ConstantValue.Should().Be("allowed-value");
     }
 
     [TestMethod]
-    public void TestEnumConfig_ToXmlValue_ShouldReturnKebabCase()
-    {
-        // Arrange
-        var config = new CompiledConfigs.TestEnumConfig
-        {
-            Action = ExpressionValue<TestActionType>.FromConstant(TestActionType.Override)
-        };
-
-        // Act
-        var xmlValue = config.Action.ToXmlValue();
-
-        // Assert
-        xmlValue.Should().Be("override");
-    }
-
-    [TestMethod]
-    public void TestXmlNameConfig_ShouldExist()
-    {
-        // Arrange & Act
-        var config = new CompiledConfigs.TestXmlNameConfig
-        {
-            Value = ExpressionValue<string>.FromConstant("test")
-        };
-
-        // Assert
-        config.Value.ConstantValue.Should().Be("test");
-    }
-
-    [TestMethod]
-    public void ImplicitConversion_ShouldWorkWithGeneratedConfig()
+    public void ImplicitConversion_ShouldWorkWithExpressionAllowedProperties()
     {
         // Arrange & Act - implicit conversion from T to ExpressionValue<T>
-        var config = new CompiledConfigs.TestSimpleConfig
+        var config = new CompiledConfigs.ManagedIdentityAuthenticationConfig
         {
-            Name = "test-name", // implicit conversion
-            OptionalValue = null,
-            Count = 100, // implicit conversion
-            IsEnabled = true // implicit conversion
+            Resource = "https://management.azure.com/", // implicit conversion to ExpressionValue<string>
+            OutputTokenVariableName = null,
+            IgnoreError = false
         };
 
         // Assert
-        config.Name.IsConstant.Should().BeTrue();
-        config.Name.ConstantValue.Should().Be("test-name");
-        config.Count.ConstantValue.Should().Be(100);
-        config.IsEnabled.ConstantValue.Should().BeTrue();
+        config.Resource.IsConstant.Should().BeTrue();
+        config.Resource.ConstantValue.Should().Be("https://management.azure.com/");
     }
 }

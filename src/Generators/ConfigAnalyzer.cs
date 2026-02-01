@@ -13,13 +13,18 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Generators;
 internal class ConfigAnalyzer
 {
     private const string XmlNameAttributeName = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring.XmlNameAttribute";
+    private const string ExpressionAllowedAttributeName = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring.ExpressionAllowedAttribute";
+    private const string AuthoringNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring";
+    
     private readonly Compilation _compilation;
     private readonly INamedTypeSymbol? _xmlNameAttribute;
+    private readonly INamedTypeSymbol? _expressionAllowedAttribute;
 
     public ConfigAnalyzer(Compilation compilation)
     {
         _compilation = compilation;
         _xmlNameAttribute = compilation.GetTypeByMetadataName(XmlNameAttributeName);
+        _expressionAllowedAttribute = compilation.GetTypeByMetadataName(ExpressionAllowedAttributeName);
     }
 
     public ConfigInfo? Analyze(INamedTypeSymbol classSymbol)
@@ -54,9 +59,19 @@ internal class ConfigAnalyzer
             }
         }
 
+        // Get base type if it's one of our config types
+        string? baseTypeName = null;
+        if (classSymbol.BaseType is not null && IsAuthoringConfigType(classSymbol.BaseType))
+        {
+            baseTypeName = classSymbol.BaseType.Name;
+        }
+
         return new ConfigInfo(
             classSymbol.ContainingNamespace.ToDisplayString(),
             classSymbol.Name,
+            classSymbol.IsAbstract,
+            HasDerivedClasses: false, // Will be updated in a second pass
+            baseTypeName,
             properties.ToImmutableArray(),
             implementedInterfaces.ToImmutableArray()
         );
@@ -68,9 +83,14 @@ internal class ConfigAnalyzer
         var xmlName = GetXmlName(property);
         var isRequired = IsRequired(property);
         var isNullable = IsNullableType(type);
+        var isExpressionAllowed = HasExpressionAllowedAttribute(property);
 
         // Get the underlying type if it's nullable
         var underlyingType = GetUnderlyingType(type);
+
+        var isCollection = IsCollectionType(type);
+        var collectionElementType = GetCollectionElementType(type);
+        var collectionElementIsCompiledConfig = isCollection && IsAuthoringConfigType(GetCollectionElementTypeSymbol(type));
 
         return new PropertyInfo(
             property.Name,
@@ -80,9 +100,63 @@ internal class ConfigAnalyzer
             isNullable,
             IsEnumType(underlyingType),
             IsInterfaceType(underlyingType),
-            IsCollectionType(type),
-            GetCollectionElementType(type)
+            isCollection,
+            collectionElementType,
+            collectionElementIsCompiledConfig,
+            isExpressionAllowed
         );
+    }
+
+    private bool HasExpressionAllowedAttribute(IPropertySymbol property)
+    {
+        if (_expressionAllowedAttribute is null)
+        {
+            return false;
+        }
+
+        return property.GetAttributes().Any(attr =>
+            SymbolEqualityComparer.Default.Equals(attr.AttributeClass, _expressionAllowedAttribute));
+    }
+
+    /// <summary>
+    /// Checks if a type is a config class that should have a compiled config generated.
+    /// Uses namespace convention: any record/class in the Authoring namespace.
+    /// </summary>
+    private static bool IsAuthoringConfigType(ITypeSymbol? typeSymbol)
+    {
+        if (typeSymbol is null)
+        {
+            return false;
+        }
+
+        // Must be a class or record in the Authoring namespace
+        if (typeSymbol is not INamedTypeSymbol namedType)
+        {
+            return false;
+        }
+
+        if (namedType.TypeKind != TypeKind.Class)
+        {
+            return false;
+        }
+
+        var ns = namedType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+        return ns.StartsWith("Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring", StringComparison.Ordinal);
+    }
+
+    private static ITypeSymbol? GetCollectionElementTypeSymbol(ITypeSymbol type)
+    {
+        if (type is IArrayTypeSymbol arrayType)
+        {
+            return arrayType.ElementType;
+        }
+
+        if (type is INamedTypeSymbol namedType && namedType.TypeArguments.Length == 1)
+        {
+            return namedType.TypeArguments[0];
+        }
+
+        return null;
     }
 
     private string? GetXmlName(IPropertySymbol property)
@@ -236,9 +310,19 @@ internal class ConfigAnalyzer
 internal record ConfigInfo(
     string Namespace,
     string ClassName,
+    bool IsAbstract,
+    bool HasDerivedClasses,
+    string? BaseTypeName,
     ImmutableArray<PropertyInfo> Properties,
     ImmutableArray<INamedTypeSymbol> ImplementedInterfaces
-);
+)
+{
+    /// <summary>
+    /// Creates a new ConfigInfo with the HasDerivedClasses flag set.
+    /// </summary>
+    public ConfigInfo WithHasDerivedClasses(bool hasDerivedClasses) =>
+        this with { HasDerivedClasses = hasDerivedClasses };
+}
 
 /// <summary>
 /// Information about a property to generate.
@@ -252,5 +336,7 @@ internal record PropertyInfo(
     bool IsEnum,
     bool IsInterface,
     bool IsCollection,
-    string? CollectionElementType
+    string? CollectionElementType,
+    bool CollectionElementIsCompiledConfig = false,
+    bool IsExpressionAllowed = false
 );

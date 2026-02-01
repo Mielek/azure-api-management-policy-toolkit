@@ -2,46 +2,40 @@
 // Licensed under the MIT License.
 
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Generators;
 
 /// <summary>
-/// Source generator that creates compiled config classes from classes marked with [GenerateCompiledConfig].
+/// Source generator that creates compiled config classes from record/class types
+/// in the Authoring namespace of referenced assemblies.
 /// </summary>
 [Generator]
 public class PolicyConfigGenerator : ISourceGenerator
 {
-    private const string GenerateCompiledConfigAttributeName = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring.GenerateCompiledConfigAttribute";
+    private const string AuthoringNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring";
+    private const string ExpressionValueTypeName = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring.ExpressionValue`1";
 
     public void Initialize(GeneratorInitializationContext context)
     {
-        context.RegisterForSyntaxNotifications(() => new ConfigSyntaxReceiver());
+        // No syntax receiver needed - we scan referenced assemblies
     }
 
     public void Execute(GeneratorExecutionContext context)
     {
-        if (context.SyntaxReceiver is not ConfigSyntaxReceiver receiver)
-        {
-            return;
-        }
-
         var compilation = context.Compilation;
-        var attributeSymbol = compilation.GetTypeByMetadataName(GenerateCompiledConfigAttributeName);
-        if (attributeSymbol is null)
+        
+        // Check if Authoring assembly is referenced by looking for a known type
+        var expressionValueType = compilation.GetTypeByMetadataName(ExpressionValueTypeName);
+        if (expressionValueType is null)
         {
-            // Attribute not found - probably not referenced
+            // Authoring assembly not referenced
             return;
         }
-
-        // Emit the attributes used by generated code
-        context.AddSource("CompiledConfigAttributes.g.cs", SourceText.From(GetAttributesSource(), Encoding.UTF8));
 
         var configAnalyzer = new ConfigAnalyzer(compilation);
         var configEmitter = new CompiledConfigEmitter();
@@ -50,23 +44,11 @@ public class PolicyConfigGenerator : ISourceGenerator
         var configsToGenerate = new List<ConfigInfo>();
         var interfaceImplementations = new Dictionary<INamedTypeSymbol, List<ConfigInfo>>(SymbolEqualityComparer.Default);
 
-        // Analyze all candidate types (classes and records)
-        foreach (var typeDeclaration in receiver.CandidateTypes)
+        // Find all config types in the Authoring namespace
+        var configTypes = FindAuthoringConfigTypes(compilation);
+
+        foreach (var typeSymbol in configTypes)
         {
-            var model = compilation.GetSemanticModel(typeDeclaration.SyntaxTree);
-            var typeSymbol = model.GetDeclaredSymbol(typeDeclaration) as INamedTypeSymbol;
-
-            if (typeSymbol is null)
-            {
-                continue;
-            }
-
-            // Check if the type has the [GenerateCompiledConfig] attribute
-            if (!HasGenerateCompiledConfigAttribute(typeSymbol, attributeSymbol))
-            {
-                continue;
-            }
-
             var configInfo = configAnalyzer.Analyze(typeSymbol);
             if (configInfo is not null)
             {
@@ -82,6 +64,26 @@ public class PolicyConfigGenerator : ISourceGenerator
                     }
                     implementations.Add(configInfo);
                 }
+            }
+        }
+
+        // Second pass: determine which types have derived classes
+        var typesWithDerived = new HashSet<string>();
+        foreach (var config in configsToGenerate)
+        {
+            if (config.BaseTypeName is not null)
+            {
+                typesWithDerived.Add(config.BaseTypeName);
+            }
+        }
+
+        // Update configs with HasDerivedClasses flag
+        for (int i = 0; i < configsToGenerate.Count; i++)
+        {
+            var config = configsToGenerate[i];
+            if (typesWithDerived.Contains(config.ClassName))
+            {
+                configsToGenerate[i] = config.WithHasDerivedClasses(true);
             }
         }
 
@@ -105,63 +107,114 @@ public class PolicyConfigGenerator : ISourceGenerator
         }
     }
 
-    private static bool HasGenerateCompiledConfigAttribute(INamedTypeSymbol classSymbol, INamedTypeSymbol attributeSymbol)
+    private static IEnumerable<INamedTypeSymbol> FindAuthoringConfigTypes(Compilation compilation)
     {
-        return classSymbol.GetAttributes().Any(attr =>
-            SymbolEqualityComparer.Default.Equals(attr.AttributeClass, attributeSymbol));
-    }
+        var results = new List<INamedTypeSymbol>();
 
-    private static string GetAttributesSource()
-    {
-        return """
-            // <auto-generated/>
-            #nullable enable
-
-            namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
-
-            /// <summary>
-            /// Marks a compiled config class with its source config type for auto-discovery.
-            /// </summary>
-            [global::System.AttributeUsage(global::System.AttributeTargets.Class, AllowMultiple = false)]
-            public sealed class SourceConfigTypeAttribute : global::System.Attribute
+        // Only search in referenced assemblies, not the current compilation.
+        // This prevents duplicate generation when a project references another project
+        // that already has compiled configs generated.
+        foreach (var reference in compilation.References)
+        {
+            var assemblySymbol = compilation.GetAssemblyOrModuleSymbol(reference) as IAssemblySymbol;
+            if (assemblySymbol is null)
             {
-                public global::System.Type SourceType { get; }
-                public SourceConfigTypeAttribute(global::System.Type sourceType) => SourceType = sourceType;
+                continue;
             }
 
-            /// <summary>
-            /// Marks a property with its source property name and XML name for auto-discovery.
-            /// </summary>
-            [global::System.AttributeUsage(global::System.AttributeTargets.Property, AllowMultiple = false)]
-            public sealed class ConfigPropertyAttribute : global::System.Attribute
+            // Scan the global namespace recursively
+            var globalNamespace = assemblySymbol.GlobalNamespace;
+            FindConfigTypesInNamespace(globalNamespace, results);
+        }
+
+        return results;
+    }
+
+    private static void FindConfigTypesInNamespace(INamespaceSymbol namespaceSymbol, List<INamedTypeSymbol> results)
+    {
+        var ns = namespaceSymbol.ToDisplayString();
+        
+        // Only process namespaces under Authoring
+        if (ns.StartsWith(AuthoringNamespace, StringComparison.Ordinal))
+        {
+            foreach (var type in namespaceSymbol.GetTypeMembers())
             {
-                public string SourcePropertyName { get; }
-                public string XmlName { get; }
-                public ConfigPropertyAttribute(string sourcePropertyName, string xmlName)
+                if (IsConfigType(type))
                 {
-                    SourcePropertyName = sourcePropertyName;
-                    XmlName = xmlName;
+                    results.Add(type);
+                }
+
+                // Check nested types
+                foreach (var nestedType in type.GetTypeMembers())
+                {
+                    if (IsConfigType(nestedType))
+                    {
+                        results.Add(nestedType);
+                    }
                 }
             }
-            """;
-    }
-}
-
-/// <summary>
-/// Syntax receiver that collects candidate classes and records for generation.
-/// </summary>
-internal class ConfigSyntaxReceiver : ISyntaxReceiver
-{
-    public List<TypeDeclarationSyntax> CandidateTypes { get; } = new List<TypeDeclarationSyntax>();
-
-    public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
-    {
-        // Look for class and record declarations with attributes
-        if (syntaxNode is TypeDeclarationSyntax typeDeclaration &&
-            (syntaxNode is ClassDeclarationSyntax || syntaxNode is RecordDeclarationSyntax) &&
-            typeDeclaration.AttributeLists.Count > 0)
-        {
-            CandidateTypes.Add(typeDeclaration);
         }
+
+        // Recurse into child namespaces
+        foreach (var childNamespace in namespaceSymbol.GetNamespaceMembers())
+        {
+            FindConfigTypesInNamespace(childNamespace, results);
+        }
+    }
+
+    /// <summary>
+    /// Determines if a type is a config type that should have a compiled config generated.
+    /// A config type is a public class or record in the Authoring namespace.
+    /// </summary>
+    private static bool IsConfigType(INamedTypeSymbol type)
+    {
+        // Must be a public class or record
+        if (type.DeclaredAccessibility != Accessibility.Public)
+        {
+            return false;
+        }
+
+        if (type.TypeKind != TypeKind.Class)
+        {
+            return false;
+        }
+
+        // Skip static classes
+        if (type.IsStatic)
+        {
+            return false;
+        }
+
+        // Skip interfaces, enums, delegates
+        if (type.TypeKind == TypeKind.Interface || 
+            type.TypeKind == TypeKind.Enum || 
+            type.TypeKind == TypeKind.Delegate)
+        {
+            return false;
+        }
+
+        // Must be in the Authoring namespace
+        var ns = type.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+        if (!ns.StartsWith(AuthoringNamespace, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Skip attribute classes
+        if (type.Name.EndsWith("Attribute", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Skip special types like ExpressionValue, Expression, etc.
+        var name = type.Name;
+        if (name == "Expression" || 
+            name.StartsWith("ExpressionValue", StringComparison.Ordinal) ||
+            name == "InitializerValue")
+        {
+            return false;
+        }
+
+        return true;
     }
 }

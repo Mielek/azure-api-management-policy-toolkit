@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using System.Reflection;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
@@ -15,7 +14,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling;
 
 /// <summary>
 /// Extracts strongly-typed compiled config objects from policy method invocations.
-/// Auto-discovers properties using reflection on the compiled config type with [ConfigProperty] attributes.
+/// Auto-discovers properties using reflection on the compiled config type.
 /// </summary>
 public static class CompiledConfigExtractor
 {
@@ -188,17 +187,16 @@ public static class CompiledConfigExtractor
             {
                 if (!prop.CanWrite) continue;
                 
-                // Get property metadata from attribute or use property name directly
-                var configAttr = prop.GetCustomAttribute<ConfigPropertyAttribute>();
-                var sourcePropertyName = configAttr?.SourcePropertyName ?? prop.Name;
-                var xmlName = configAttr?.XmlName ?? ToKebabCase(prop.Name);
+                // Use property name directly as source property name
+                var sourcePropertyName = prop.Name;
+                var xmlName = ToKebabCase(prop.Name);
                 
                 // Check if property is required (has 'required' keyword in C# 11+)
                 var isRequired = prop.GetCustomAttribute<System.Runtime.CompilerServices.RequiredMemberAttribute>() != null;
                 
                 // Determine the property type characteristics
                 var propType = prop.PropertyType;
-                var (isCollection, collectionElementType, innerType) = AnalyzePropertyType(propType);
+                var (isCollection, collectionElementType, innerType, isExpressionValue) = AnalyzePropertyType(propType);
                 
                 properties.Add(new PropertyMetadata(
                     prop,
@@ -207,20 +205,21 @@ public static class CompiledConfigExtractor
                     isRequired,
                     isCollection,
                     innerType,
-                    collectionElementType));
+                    collectionElementType,
+                    isExpressionValue));
             }
             
             return new ConfigTypeMetadata(type, properties);
         });
     }
 
-    private static (bool IsCollection, Type? CollectionElementType, Type InnerType) AnalyzePropertyType(Type propType)
+    private static (bool IsCollection, Type? CollectionElementType, Type InnerType, bool IsExpressionValue) AnalyzePropertyType(Type propType)
     {
         // Check for nullable
         var underlyingType = Nullable.GetUnderlyingType(propType);
         var effectiveType = underlyingType ?? propType;
         
-        // Check for IReadOnlyList<ExpressionValue<T>>
+        // Check for IReadOnlyList<T>
         if (effectiveType.IsGenericType)
         {
             var genericDef = effectiveType.GetGenericTypeDefinition();
@@ -228,20 +227,27 @@ public static class CompiledConfigExtractor
             if (genericDef == typeof(IReadOnlyList<>))
             {
                 var elementType = effectiveType.GetGenericArguments()[0];
+                
+                // Check if the element type is ExpressionValue<T>
                 if (elementType.IsGenericType && elementType.GetGenericTypeDefinition() == typeof(ExpressionValue<>))
                 {
-                    var innerType = elementType.GetGenericArguments()[0];
-                    return (true, innerType, innerType);
+                    var innerElementType = elementType.GetGenericArguments()[0];
+                    // Collection of expression values - IsExpressionValue should be true
+                    return (true, innerElementType, innerElementType, true);
                 }
+                
+                // Collection element is a plain type (compiled config or simple type)
+                return (true, elementType, elementType, false);
             }
             else if (genericDef == typeof(ExpressionValue<>))
             {
                 var innerType = effectiveType.GetGenericArguments()[0];
-                return (false, null, innerType);
+                return (false, null, innerType, true);
             }
         }
         
-        return (false, null, effectiveType);
+        // Not wrapped in ExpressionValue - use the type directly
+        return (false, null, effectiveType, false);
     }
 
     private static Result<object?> ExtractPropertyValue(
@@ -261,20 +267,68 @@ public static class CompiledConfigExtractor
             return Result<object?>.Success(result.Value);
         }
         
-        // Handle collections: IReadOnlyList<ExpressionValue<T>>
+        // Handle collections: IReadOnlyList<T>
         if (propMeta.IsCollection && propMeta.CollectionElementType != null)
         {
             return ExtractCollectionValue(expression, context, propMeta);
         }
         
-        // Handle nested compiled configs (complex types that are classes with ConfigProperty attributes)
+        // Handle nested compiled configs (complex types)
         if (IsNestedCompiledConfig(propMeta.InnerType))
         {
             return ExtractNestedConfig(expression, context, propMeta, policyName);
         }
         
-        // Handle ExpressionValue<T> or Nullable<ExpressionValue<T>>
-        return ExtractExpressionValue(expression, context, propMeta.InnerType);
+        // Handle ExpressionValue<T> - property supports expressions
+        if (propMeta.IsExpressionValue)
+        {
+            return ExtractExpressionValue(expression, context, propMeta.InnerType);
+        }
+        
+        // Handle non-ExpressionValue types - extract constant value directly
+        return ExtractConstantValue(expression, context, propMeta.InnerType);
+    }
+
+    private static Result<object?> ExtractConstantValue(
+        ExpressionSyntax expression,
+        ICompilationContext context,
+        Type targetType)
+    {
+        // Use semantic model to get the constant value
+        var semanticModel = context.Compilation.GetSemanticModel(expression.SyntaxTree);
+        var constantValue = semanticModel.GetConstantValue(expression);
+        
+        if (constantValue.HasValue)
+        {
+            // Convert to target type if needed
+            var value = constantValue.Value;
+            if (value is not null && value.GetType() != targetType)
+            {
+                try
+                {
+                    value = Convert.ChangeType(value, targetType);
+                }
+                catch
+                {
+                    // Type conversion failed, use as-is
+                }
+            }
+            return Result<object?>.Success(value);
+        }
+        
+        // Try to extract from literal expression
+        if (expression is LiteralExpressionSyntax literal)
+        {
+            var token = literal.Token;
+            object? value = token.Value;
+            return Result<object?>.Success(value);
+        }
+        
+        // For non-constant expressions that aren't allowed for this property
+        return Result<object?>.Failure(Diagnostic.Create(
+            CompilationErrors.NotSupportedParameter,
+            expression.GetLocation(),
+            expression.ToString()));
     }
 
     private static Result<object?> ExtractExpressionValue(
@@ -319,19 +373,108 @@ public static class CompiledConfigExtractor
             _ => [expression] // Single value treated as array of one
         };
 
-        var method = typeof(ExpressionProcessor)
-            .GetMethod(nameof(ExpressionProcessor.ProcessToExpressionValue))!
-            .MakeGenericMethod(elementType);
+        // Check if element type is a nested compiled config (complex object like AddressRange, TraceMetadata, etc.)
+        if (IsNestedCompiledConfig(elementType))
+        {
+            return ExtractNestedConfigCollection(expressions, context, propMeta, elementType, diagnostics);
+        }
 
-        // Create a list dynamically
-        var expressionValueType = typeof(ExpressionValue<>).MakeGenericType(elementType);
-        var listType = typeof(List<>).MakeGenericType(expressionValueType);
+        // If the collection elements support expressions (IsExpressionValue is true),
+        // wrap each element in ExpressionValue<T>
+        if (propMeta.IsExpressionValue)
+        {
+            var method = typeof(ExpressionProcessor)
+                .GetMethod(nameof(ExpressionProcessor.ProcessToExpressionValue))!
+                .MakeGenericMethod(elementType);
+
+            // Create a list of ExpressionValue<T>
+            var expressionValueType = typeof(ExpressionValue<>).MakeGenericType(elementType);
+            var listType = typeof(List<>).MakeGenericType(expressionValueType);
+            var list = Activator.CreateInstance(listType)!;
+            var addMethod = listType.GetMethod("Add")!;
+
+            foreach (var itemExpression in expressions)
+            {
+                var result = method.Invoke(null, [itemExpression, context]);
+                var resultType = result!.GetType();
+                var isSuccess = (bool)resultType.GetProperty("IsSuccess")!.GetValue(result)!;
+                
+                if (!isSuccess)
+                {
+                    var itemDiagnostics = (IEnumerable<Diagnostic>)resultType.GetProperty("Diagnostics")!.GetValue(result)!;
+                    diagnostics.AddRange(itemDiagnostics);
+                    continue;
+                }
+                
+                var value = resultType.GetProperty("Value")!.GetValue(result);
+                addMethod.Invoke(list, [value]);
+            }
+
+            if (diagnostics.Count > 0)
+            {
+                return Result<object?>.Failure(diagnostics);
+            }
+            
+            return Result<object?>.Success(list);
+        }
+        else
+        {
+            // Collection of plain values - extract constant values directly
+            var listType = typeof(List<>).MakeGenericType(elementType);
+            var list = Activator.CreateInstance(listType)!;
+            var addMethod = listType.GetMethod("Add")!;
+
+            foreach (var itemExpression in expressions)
+            {
+                var result = ExtractConstantValue(itemExpression, context, elementType);
+                if (result.IsFailure)
+                {
+                    diagnostics.AddRange(result.Diagnostics);
+                    continue;
+                }
+                
+                addMethod.Invoke(list, [result.Value]);
+            }
+
+            if (diagnostics.Count > 0)
+            {
+                return Result<object?>.Failure(diagnostics);
+            }
+            
+            return Result<object?>.Success(list);
+        }
+    }
+
+    private static Result<object?> ExtractNestedConfigCollection(
+        IEnumerable<ExpressionSyntax> expressions,
+        ICompilationContext context,
+        PropertyMetadata propMeta,
+        Type elementType,
+        List<Diagnostic> diagnostics)
+    {
+        // For nested configs, we extract each item as a compiled config
+        // The property type is IReadOnlyList<TNestedConfig>
+        // We create List<TNestedConfig> directly (no ExpressionValue wrapper)
+        
+        // Get the generated compiled config type for this authoring type
+        var compiledConfigType = GetCompiledConfigType(elementType);
+        if (compiledConfigType == null)
+        {
+            // Fallback: try to use the element type directly if it's already a compiled config
+            compiledConfigType = elementType;
+        }
+        
+        var listType = typeof(List<>).MakeGenericType(compiledConfigType);
         var list = Activator.CreateInstance(listType)!;
         var addMethod = listType.GetMethod("Add")!;
-
+        
+        var extractMethod = typeof(CompiledConfigExtractor)
+            .GetMethod(nameof(ExtractFromExpression), BindingFlags.Public | BindingFlags.Static)!
+            .MakeGenericMethod(compiledConfigType);
+        
         foreach (var itemExpression in expressions)
         {
-            var result = method.Invoke(null, [itemExpression, context]);
+            var result = extractMethod.Invoke(null, [itemExpression, context, propMeta.SourcePropertyName]);
             var resultType = result!.GetType();
             var isSuccess = (bool)resultType.GetProperty("IsSuccess")!.GetValue(result)!;
             
@@ -342,10 +485,10 @@ public static class CompiledConfigExtractor
                 continue;
             }
             
-            var value = resultType.GetProperty("Value")!.GetValue(result);
-            addMethod.Invoke(list, [value]);
+            var extractedConfig = resultType.GetProperty("Value")!.GetValue(result);
+            addMethod.Invoke(list, [extractedConfig]);
         }
-
+        
         if (diagnostics.Count > 0)
         {
             return Result<object?>.Failure(diagnostics);
@@ -354,12 +497,43 @@ public static class CompiledConfigExtractor
         return Result<object?>.Success(list);
     }
 
+    private static Type? GetCompiledConfigType(Type authoringType)
+    {
+        // Look for a compiled config in the Compiling.Configs namespace with the same name
+        var compiledConfigNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs";
+        var configName = authoringType.Name;
+        
+        // Search in loaded assemblies
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var compiledType = assembly.GetType($"{compiledConfigNamespace}.{configName}");
+            if (compiledType != null)
+            {
+                return compiledType;
+            }
+        }
+        
+        return null;
+    }
+
     private static bool IsNestedCompiledConfig(Type type)
     {
-        // A nested compiled config is a class that has the [SourceConfigType] attribute
-        // or any property with [ConfigProperty] attribute
-        return type.GetCustomAttribute<SourceConfigTypeAttribute>() != null
-            || type.GetProperties().Any(p => p.GetCustomAttribute<ConfigPropertyAttribute>() != null);
+        // Skip primitive and simple types
+        if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type.IsEnum)
+        {
+            return false;
+        }
+        
+        // A nested compiled config is:
+        // 1. A class in the Compiling.Configs namespace (generated compiled config)
+        // 2. A class/record type from the Authoring namespace (authoring config)
+        var ns = type.Namespace ?? string.Empty;
+        if (ns.Contains("Compiling.Configs") || ns.Contains("Authoring"))
+        {
+            return type.IsClass;
+        }
+        
+        return false;
     }
 
     private static Result<object?> ExtractNestedConfig(
@@ -418,5 +592,6 @@ public static class CompiledConfigExtractor
         bool IsRequired,
         bool IsCollection,
         Type InnerType,
-        Type? CollectionElementType);
+        Type? CollectionElementType,
+        bool IsExpressionValue);
 }

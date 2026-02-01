@@ -24,11 +24,29 @@ internal class CompiledConfigEmitter
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
         sb.AppendLine($"/// Compiled config class for <see cref=\"{config.Namespace}.{config.ClassName}\"/>.");
-        sb.AppendLine("/// Properties are wrapped in ExpressionValue&lt;T&gt; to support both constants and APIM expressions.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine($"[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"PolicyConfigGenerator\", \"1.0.0\")]");
-        sb.AppendLine($"[SourceConfigType(typeof({config.Namespace}.{config.ClassName}))]");
-        sb.AppendLine($"public sealed class {config.ClassName}");
+        
+        // Determine class modifiers:
+        // - abstract if source is abstract
+        // - sealed if not abstract AND has no derived classes
+        // - neither if not abstract but has derived classes
+        string classModifiers;
+        if (config.IsAbstract)
+        {
+            classModifiers = "public abstract class";
+        }
+        else if (config.HasDerivedClasses)
+        {
+            classModifiers = "public class";
+        }
+        else
+        {
+            classModifiers = "public sealed class";
+        }
+        
+        var baseClass = config.BaseTypeName is not null ? $" : {config.BaseTypeName}" : "";
+        sb.AppendLine($"{classModifiers} {config.ClassName}{baseClass}");
         sb.AppendLine("{");
 
         foreach (var prop in config.Properties)
@@ -49,18 +67,36 @@ internal class CompiledConfigEmitter
         sb.AppendLine($"    /// <summary>");
         sb.AppendLine($"    /// XML name: {prop.XmlName}");
         sb.AppendLine($"    /// </summary>");
-        sb.AppendLine($"    [ConfigProperty(\"{prop.Name}\", \"{prop.XmlName}\")]");
         sb.AppendLine($"    public {requiredModifier}{wrappedType} {prop.Name} {{ get; init; }}");
         sb.AppendLine();
     }
 
     private string WrapType(PropertyInfo prop)
     {
-        // For collections, wrap the element type
+        // For collections, use IReadOnlyList with the element type (compiled config if nested)
         if (prop.IsCollection && prop.CollectionElementType is not null)
         {
-            var elementType = $"{ExpressionValueType}<{prop.CollectionElementType}>";
-            var collectionType = $"global::System.Collections.Generic.IReadOnlyList<{elementType}>";
+            var elementTypeName = prop.CollectionElementType;
+            if (prop.CollectionElementIsCompiledConfig)
+            {
+                // Extract just the class name and use the compiled config namespace
+                var lastDot = elementTypeName.LastIndexOf('.');
+                var simpleName = lastDot >= 0 ? elementTypeName.Substring(lastDot + 1) : elementTypeName;
+                // Remove "global::" prefix if present
+                if (simpleName.StartsWith("global::", StringComparison.Ordinal))
+                {
+                    simpleName = simpleName.Substring(8);
+                }
+                elementTypeName = $"{CompiledConfigNamespace}.{simpleName}";
+            }
+            else if (prop.IsExpressionAllowed)
+            {
+                // For collections with [ExpressionAllowed] where the element is a simple type,
+                // wrap the element type in ExpressionValue<T>
+                elementTypeName = $"{ExpressionValueType}<{elementTypeName}>";
+            }
+            
+            var collectionType = $"global::System.Collections.Generic.IReadOnlyList<{elementTypeName}>";
             return prop.IsNullable ? $"{collectionType}?" : collectionType;
         }
 
@@ -84,8 +120,14 @@ internal class CompiledConfigEmitter
             return prop.IsNullable ? $"{unionTypeName}?" : unionTypeName;
         }
 
-        // Standard wrapping in ExpressionValue<T>
-        var wrappedType = $"{ExpressionValueType}<{prop.TypeFullName}>";
-        return prop.IsNullable ? $"{wrappedType}?" : wrappedType;
+        // Only wrap in ExpressionValue<T> if [ExpressionAllowed] attribute is present
+        if (prop.IsExpressionAllowed)
+        {
+            var wrappedType = $"{ExpressionValueType}<{prop.TypeFullName}>";
+            return prop.IsNullable ? $"{wrappedType}?" : wrappedType;
+        }
+
+        // No wrapping - use the type directly
+        return prop.IsNullable ? $"{prop.TypeFullName}?" : prop.TypeFullName;
     }
 }

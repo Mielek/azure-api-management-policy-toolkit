@@ -9,24 +9,17 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class CheckHeaderCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.CheckHeader);
 
-    private sealed class LocalCheckHeaderCompiledConfig
-    {
-        public required ExpressionValue<string> Name { get; init; }
-        public required ExpressionValue<int> FailCheckHttpCode { get; init; }
-        public required ExpressionValue<string> FailCheckErrorMessage { get; init; }
-        public required ExpressionValue<bool> IgnoreCase { get; init; }
-        public required InitializerValue Values { get; init; }
-    }
-
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalCheckHeaderCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.CheckHeaderConfig>(
             node, context, "check-header");
 
         if (!configResult.IsSuccess)
@@ -43,12 +36,12 @@ public class CheckHeaderCompiler : IMethodPolicyHandler
         element.Add(new XAttribute("failed-check-error-message", config.FailCheckErrorMessage.ToXmlValue()));
         element.Add(new XAttribute("ignore-case", config.IgnoreCase.ToXmlValue()));
 
-        var values = config.Values.UnnamedValues ?? [];
+        var values = config.Values;
         if (values.Count == 0)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.RequiredParameterIsEmpty,
-                config.Values.Node.GetLocation(),
+                node.GetLocation(),
                 "check-header",
                 nameof(CheckHeaderConfig.Values)
             ));
@@ -57,7 +50,7 @@ public class CheckHeaderCompiler : IMethodPolicyHandler
 
         foreach (var value in values)
         {
-            element.Add(new XElement("value", value.Value!));
+            element.Add(new XElement("value", value.ToXmlValue()));
         }
 
         context.AddPolicy(element);
