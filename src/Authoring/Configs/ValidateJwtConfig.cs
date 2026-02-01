@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the ValidateJwt policy.
 /// </summary>
-[GenerateCompiledConfig]
 public record ValidateJwtConfig
 {
     /// <summary>
@@ -104,7 +103,6 @@ public record ValidateJwtConfig
 /// <summary>
 /// Configuration for OpenID Connect.
 /// </summary>
-[GenerateCompiledConfig]
 public record OpenIdConfig
 {
     /// <summary>
@@ -127,7 +125,6 @@ public abstract record KeyConfig
 /// <summary>
 /// Configuration for a base64-encoded key.
 /// </summary>
-[GenerateCompiledConfig]
 public sealed record Base64KeyConfig : KeyConfig
 {
     /// <summary>
@@ -139,7 +136,6 @@ public sealed record Base64KeyConfig : KeyConfig
 /// <summary>
 /// Configuration for a certificate key.
 /// </summary>
-[GenerateCompiledConfig]
 public sealed record CertificateKeyConfig : KeyConfig
 {
     /// <summary>
@@ -151,7 +147,6 @@ public sealed record CertificateKeyConfig : KeyConfig
 /// <summary>
 /// Configuration for an asymmetric key.
 /// </summary>
-[GenerateCompiledConfig]
 public sealed record AsymmetricKeyConfig : KeyConfig
 {
     /// <summary>

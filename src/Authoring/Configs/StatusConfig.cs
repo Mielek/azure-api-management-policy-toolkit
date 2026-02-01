@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration to set the HTTP status code and reason to the specified value.<br />
 /// Compiled to <a href="https://learn.microsoft.com/en-us/azure/api-management/set-status-policy">set-status</a> policy.
 /// </summary>
-[GenerateCompiledConfig]
 public record StatusConfig
 {
     /// <summary>

@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration of forward request policy.<br/>
 /// Compiled to <a href="https://learn.microsoft.com/en-us/azure/api-management/forward-request-policy">forward-request</a> policy.
 /// </summary>
-[GenerateCompiledConfig]
 public record ForwardRequestConfig
 {
     /// <summary>

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the rate-limit-by-key policy, specifying limits and behavior for rate limiting based on a key.
 /// </summary>
-[GenerateCompiledConfig]
 public record RateLimitByKeyConfig
 {
     /// <summary>

@@ -36,13 +36,3 @@ public enum TestActionType
     Override,
     Append
 }
-
-/// <summary>
-/// Test config with XmlName attribute.
-/// </summary>
-public class TestXmlNameConfig
-{
-    [XmlName("custom-name")]
-    [ExpressionAllowed]
-    public required string Value { get; init; }
-}

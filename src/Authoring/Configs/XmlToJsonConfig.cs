@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the xml-to-json policy.
 /// </summary>
-[GenerateCompiledConfig]
 public record XmlToJsonConfig
 {
     /// <summary>

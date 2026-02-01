@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the proxy policy.<br />
 /// Specifies the proxy server URL, and optionally the username and password for authentication.
 /// </summary>
-[GenerateCompiledConfig]
 public record ProxyConfig
 {
     /// <summary>

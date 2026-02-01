@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the limit-concurrency policy.<br />
 /// Specifies the maximum number of concurrent calls allowed and the behavior when the limit is reached.
 /// </summary>
-[GenerateCompiledConfig]
 public record LimitConcurrencyConfig
 {
     /// <summary>

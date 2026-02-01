@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the LLM and Azure OpenAI emit token metric policies to emit metrics about token usage.
 /// </summary>
-[GenerateCompiledConfig]
 public record EmitTokenMetricConfig
 {
     /// <summary>

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the cache-lookup-value policy which retrieves a cached value and stores it in a variable.
 /// </summary>
-[GenerateCompiledConfig]
 public record CacheLookupValueConfig
 {
     /// <summary>

@@ -12,18 +12,15 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Generators;
 /// </summary>
 internal class ConfigAnalyzer
 {
-    private const string XmlNameAttributeName = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring.XmlNameAttribute";
     private const string ExpressionAllowedAttributeName = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring.ExpressionAllowedAttribute";
     private const string AuthoringNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring";
     
     private readonly Compilation _compilation;
-    private readonly INamedTypeSymbol? _xmlNameAttribute;
     private readonly INamedTypeSymbol? _expressionAllowedAttribute;
 
     public ConfigAnalyzer(Compilation compilation)
     {
         _compilation = compilation;
-        _xmlNameAttribute = compilation.GetTypeByMetadataName(XmlNameAttributeName);
         _expressionAllowedAttribute = compilation.GetTypeByMetadataName(ExpressionAllowedAttributeName);
     }
 
@@ -80,7 +77,6 @@ internal class ConfigAnalyzer
     private PropertyInfo? AnalyzeProperty(IPropertySymbol property)
     {
         var type = property.Type;
-        var xmlName = GetXmlName(property);
         var isRequired = IsRequired(property);
         var isNullable = IsNullableType(type);
         var isExpressionAllowed = HasExpressionAllowedAttribute(property);
@@ -97,7 +93,7 @@ internal class ConfigAnalyzer
 
         return new PropertyInfo(
             property.Name,
-            xmlName ?? ToKebabCase(property.Name),
+            ToKebabCase(property.Name),
             GetTypeFullName(underlyingType),
             isRequired,
             isNullable,
@@ -158,24 +154,6 @@ internal class ConfigAnalyzer
         if (type is INamedTypeSymbol namedType && namedType.TypeArguments.Length == 1)
         {
             return namedType.TypeArguments[0];
-        }
-
-        return null;
-    }
-
-    private string? GetXmlName(IPropertySymbol property)
-    {
-        if (_xmlNameAttribute is null)
-        {
-            return null;
-        }
-
-        var attr = property.GetAttributes().FirstOrDefault(a =>
-            SymbolEqualityComparer.Default.Equals(a.AttributeClass, _xmlNameAttribute));
-
-        if (attr is not null && attr.ConstructorArguments.Length > 0)
-        {
-            return attr.ConstructorArguments[0].Value?.ToString();
         }
 
         return null;

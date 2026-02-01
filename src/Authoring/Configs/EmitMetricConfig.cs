@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the emit-metric policy which emits custom metrics to Azure Monitor.
 /// This policy allows monitoring API usage patterns and performance data.
 /// </summary>
-[GenerateCompiledConfig]
 public record EmitMetricConfig
 {
     /// <summary>

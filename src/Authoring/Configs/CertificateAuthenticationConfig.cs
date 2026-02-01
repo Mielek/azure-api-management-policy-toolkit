@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -10,7 +10,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <remarks>
 /// You must provide exactly one of the following: Thumbprint, CertificateId, or a combination of Body and Password.
 /// </remarks>
-[GenerateCompiledConfig]
 public record CertificateAuthenticationConfig : IAuthenticationConfig
 {
     /// <summary>

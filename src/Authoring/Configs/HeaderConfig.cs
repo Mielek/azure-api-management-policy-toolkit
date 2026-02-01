@@ -1,9 +1,8 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 
-[GenerateCompiledConfig]
 public record HeaderConfig
 {
     /// <summary>

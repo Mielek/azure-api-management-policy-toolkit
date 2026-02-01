@@ -3,7 +3,6 @@
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 
-[GenerateCompiledConfig]
 public record LogToEventHubConfig
 {
     /// <summary>

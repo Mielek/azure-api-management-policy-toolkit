@@ -260,29 +260,6 @@ public class PolicyConfigGeneratorTests
 
     #endregion
 
-    #region XmlName Attribute
-
-    [TestMethod]
-    public void Generator_ShouldRespectXmlNameAttribute()
-    {
-        // The generator uses XmlName attribute to determine the XML element name
-        // This is tested implicitly through the compiler tests
-        // Here we verify the property names match expected patterns
-        
-        // ForwardRequestConfig has properties like FailOnErrorStatusCode
-        // which should map to fail-on-error-status-code in XML
-        var config = new CompiledConfigs.ForwardRequestConfig
-        {
-            FailOnErrorStatusCode = true,
-            BufferRequestBody = false
-        };
-
-        config.FailOnErrorStatusCode.Should().BeTrue();
-        config.BufferRequestBody.Should().BeFalse();
-    }
-
-    #endregion
-
     #region Nullable Properties
 
     [TestMethod]

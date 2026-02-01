@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the retry policy, specifying retry conditions, retry count, intervals, and other retry behavior settings.
 /// </summary>
-[GenerateCompiledConfig]
 public record RetryConfig
 {
     /// <summary>

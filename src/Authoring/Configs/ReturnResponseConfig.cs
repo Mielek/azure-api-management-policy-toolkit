@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the return-response policy, specifying details of the response to return directly to the caller.
 /// </summary>
-[GenerateCompiledConfig]
 public record ReturnResponseConfig
 {
     /// <summary>

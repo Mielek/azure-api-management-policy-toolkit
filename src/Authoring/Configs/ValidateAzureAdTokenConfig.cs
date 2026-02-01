@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the validate-azure-ad-token policy.<br />
 /// Specifies the parameters for validating an Azure Active Directory token.
 /// </summary>
-[GenerateCompiledConfig]
 public record ValidateAzureAdTokenConfig
 {
     /// <summary>
@@ -83,7 +82,6 @@ public record ValidateAzureAdTokenConfig
 /// <summary>
 /// Configuration for a decryption key.
 /// </summary>
-[GenerateCompiledConfig]
 public record DecryptionKey
 {
     /// <summary>

@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the xsl-transform policy.<br />
 /// Specifies the XSLT stylesheet and optional parameters.
 /// </summary>
-[GenerateCompiledConfig]
 public record XslTransformConfig
 {
     /// <summary>
@@ -25,7 +24,6 @@ public record XslTransformConfig
 /// <summary>
 /// Represents a parameter to pass to the XSLT stylesheet.
 /// </summary>
-[GenerateCompiledConfig]
 public record XslTransformParameter
 {
     /// <summary>

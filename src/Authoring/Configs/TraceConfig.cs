@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the trace policy.<br />
 /// Specifies the trace source, message, severity, and optional metadata.
 /// </summary>
-[GenerateCompiledConfig]
 public record TraceConfig
 {
     /// <summary>
@@ -35,7 +34,6 @@ public record TraceConfig
 /// <summary>
 /// Metadata for the trace policy.
 /// </summary>
-[GenerateCompiledConfig]
 public record TraceMetadata
 {
     /// <summary>

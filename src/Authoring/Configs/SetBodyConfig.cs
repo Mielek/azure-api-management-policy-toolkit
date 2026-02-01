@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Configuration for the set-body policy.<br />
 /// Specifies template, xsi:nil, and parse date settings.
 /// </summary>
-[GenerateCompiledConfig]
 public record SetBodyConfig
 {
     /// <summary>

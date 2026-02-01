@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
@@ -7,7 +7,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Defines a dimension for token usage metrics.
 /// Each dimension is a key-value pair that adds context to the metric.
 /// </summary>
-[GenerateCompiledConfig]
 public class MetricDimensionConfig
 {
     /// <summary>

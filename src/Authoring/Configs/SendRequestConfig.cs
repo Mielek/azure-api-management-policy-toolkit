@@ -6,7 +6,6 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// <summary>
 /// Configuration for the <a href="https://learn.microsoft.com/en-us/azure/api-management/send-request-policy">send-request</a> policy.
 /// </summary>
-[GenerateCompiledConfig]
 public record SendRequestConfig
 {
     /// <summary>
