@@ -45,7 +45,7 @@ public record SemanticCacheLookupConfig
     /// Default is 4 messages.
     /// </summary>
     [ExpressionAllowed]
-    public uint MaxMessageCount { get; init; }
+    public uint? MaxMessageCount { get; init; }
 
     /// <summary>
     /// Optional. Array of request properties to vary the cache by.<br/>

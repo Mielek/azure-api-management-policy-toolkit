@@ -17,45 +17,54 @@ public class SendOneWayRequestCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<SendOneWayRequestConfig>(node, context, "send-one-way-request");
+        var configResult = CompiledConfigExtractor.Extract<LocalSendOneWayRequestCompiledConfig>(
+            node, context, "send-one-way-request");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("send-one-way-request");
 
-        element.AddAttribute(values, nameof(SendOneWayRequestConfig.Mode), "mode");
-        element.AddAttribute(values, nameof(SendOneWayRequestConfig.Timeout), "timeout");
-
-        if (values.TryGetValue(nameof(SendOneWayRequestConfig.Url), out InitializerValue? url))
+        if (config.Mode is { } mode)
         {
-            element.Add(new XElement("set-url", url.Value!));
+            element.Add(new XAttribute("mode", mode.ToXmlValue()));
         }
 
-        if (values.TryGetValue(nameof(SendOneWayRequestConfig.Method), out InitializerValue? method))
+        if (config.Timeout is { } timeout)
         {
-            element.Add(new XElement("set-method", method.Value!));
+            element.Add(new XAttribute("timeout", timeout.ToXmlValue()));
         }
 
-        if (values.TryGetValue(nameof(SendOneWayRequestConfig.Headers), out InitializerValue? headers))
+        if (config.Url is { } url)
+        {
+            element.Add(new XElement("set-url", url.ToXmlValue()));
+        }
+
+        if (config.Method is { } method)
+        {
+            element.Add(new XElement("set-method", method.ToXmlValue()));
+        }
+
+        if (config.Headers is { } headers)
         {
             BaseSetHeaderCompiler.HandleHeaders(context, element, headers);
         }
 
-        if (values.TryGetValue(nameof(SendOneWayRequestConfig.Body), out InitializerValue? body))
+        if (config.Body is { } body)
         {
             SetBodyCompiler.HandleBody(context, element, body);
         }
 
-        if (values.TryGetValue(nameof(SendOneWayRequestConfig.Authentication), out InitializerValue? authentication))
+        if (config.Authentication is { } authentication)
         {
             HandleAuthentication(context, element, authentication);
         }
 
-        if (values.TryGetValue(nameof(SendOneWayRequestConfig.Proxy), out InitializerValue? proxy))
+        if (config.Proxy is { } proxy)
         {
             ProxyCompiler.HandleProxy(context, element, proxy);
         }
@@ -94,5 +103,17 @@ public class SendOneWayRequestCompiler : IMethodPolicyHandler
                 ));
                 break;
         }
+    }
+
+    private sealed class LocalSendOneWayRequestCompiledConfig
+    {
+        public ExpressionValue<string>? Mode { get; init; }
+        public ExpressionValue<int>? Timeout { get; init; }
+        public ExpressionValue<string>? Url { get; init; }
+        public ExpressionValue<string>? Method { get; init; }
+        public InitializerValue? Headers { get; init; }
+        public InitializerValue? Body { get; init; }
+        public InitializerValue? Authentication { get; init; }
+        public InitializerValue? Proxy { get; init; }
     }
 }

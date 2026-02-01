@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class CacheRemoveValueCompiler : IMethodPolicyHandler
@@ -17,28 +19,24 @@ public class CacheRemoveValueCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<CacheRemoveValueConfig>(node, context, "cache-remove-value");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.CacheRemoveValueConfig>(
+            node, context, "cache-remove-value");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("cache-remove-value");
 
-        if (!element.AddAttribute(values, nameof(CacheRemoveValueConfig.Key), "key"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-remove-value",
-                nameof(CacheRemoveValueConfig.Key)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("key", config.Key.ToXmlValue()));
 
-        element.AddAttribute(values, nameof(CacheRemoveValueConfig.CachingType), "caching-type");
+        if (config.CachingType is { } cachingType)
+        {
+            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

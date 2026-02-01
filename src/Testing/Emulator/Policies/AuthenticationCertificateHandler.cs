@@ -36,9 +36,10 @@ internal class AuthenticationCertificateHandler : PolicyHandler<CertificateAuthe
         {
             context.Request.Certificate = certificateStore.ById.GetValueOrDefault(config.CertificateId);
         }
-        else if (config.Body is not null)
+        else if (!string.IsNullOrWhiteSpace(config.Body))
         {
-            context.Request.Certificate = new X509Certificate2(config.Body, config.Password);
+            var bodyBytes = Convert.FromBase64String(config.Body);
+            context.Request.Certificate = new X509Certificate2(bodyBytes, config.Password);
         }
         else
         {

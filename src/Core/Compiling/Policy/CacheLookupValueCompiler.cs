@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class CacheLookupValueCompiler : IMethodPolicyHandler
@@ -17,40 +19,30 @@ public class CacheLookupValueCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<CacheLookupValueConfig>(node, context, "cache-lookup-value");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.CacheLookupValueConfig>(
+            node, context, "cache-lookup-value");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("cache-lookup-value");
 
-        if (!element.AddAttribute(values, nameof(CacheLookupValueConfig.Key), "key"))
+        element.Add(new XAttribute("key", config.Key.ToXmlValue()));
+        element.Add(new XAttribute("variable-name", config.VariableName.ToXmlValue()));
+
+        if (config.CachingType is { } cachingType)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-lookup-value",
-                nameof(CacheLookupValueConfig.Key)
-            ));
-            return;
+            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(CacheLookupValueConfig.VariableName), "variable-name"))
+        if (config.DefaultValue is { } defaultValue)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-lookup-value",
-                nameof(CacheLookupValueConfig.VariableName)
-            ));
-            return;
+            element.Add(new XAttribute("default-value", defaultValue.ToXmlValue()));
         }
-
-        element.AddAttribute(values, nameof(CacheLookupValueConfig.CachingType), "caching-type");
-        element.AddAttribute(values, nameof(CacheLookupValueConfig.DefaultValue), "default-value");
 
         context.AddPolicy(element);
     }

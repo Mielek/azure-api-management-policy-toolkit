@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class QuotaByKeyCompiler : IMethodPolicyHandler
@@ -17,29 +19,22 @@ public class QuotaByKeyCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<QuotaByKeyConfig>(node, context, "quota-by-key");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.QuotaByKeyConfig>(
+            node, context, "quota-by-key");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("quota-by-key");
 
-        if (!element.AddAttribute(values, nameof(QuotaByKeyConfig.CounterKey), "counter-key"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "quota-by-key",
-                nameof(QuotaByKeyConfig.CounterKey)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("counter-key", config.CounterKey.ToXmlValue()));
 
-        bool isCallsAdded = element.AddAttribute(values, nameof(QuotaByKeyConfig.Calls), "calls");
-        bool isBandwidthAdded = element.AddAttribute(values, nameof(QuotaByKeyConfig.Bandwidth), "bandwidth");
+        bool isCallsAdded = config.Calls is not null;
+        bool isBandwidthAdded = config.Bandwidth is not null;
 
         if (!isCallsAdded && !isBandwidthAdded)
         {
@@ -53,20 +48,32 @@ public class QuotaByKeyCompiler : IMethodPolicyHandler
             return;
         }
 
-        if (!element.AddAttribute(values, nameof(QuotaByKeyConfig.RenewalPeriod), "renewal-period"))
+        if (config.Calls is { } calls)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "quota-by-key",
-                nameof(QuotaByKeyConfig.RenewalPeriod)
-            ));
-            return;
+            element.Add(new XAttribute("calls", calls.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(QuotaByKeyConfig.IncrementCondition), "increment-condition");
-        element.AddAttribute(values, nameof(QuotaByKeyConfig.IncrementCount), "increment-count");
-        element.AddAttribute(values, nameof(QuotaByKeyConfig.FirstPeriodStart), "first-period-start");
+        if (config.Bandwidth is { } bandwidth)
+        {
+            element.Add(new XAttribute("bandwidth", bandwidth.ToXmlValue()));
+        }
+
+        element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
+
+        if (config.IncrementCondition is { } incrementCondition)
+        {
+            element.Add(new XAttribute("increment-condition", incrementCondition.ToXmlValue()));
+        }
+
+        if (config.IncrementCount is { } incrementCount)
+        {
+            element.Add(new XAttribute("increment-count", incrementCount.ToXmlValue()));
+        }
+
+        if (config.FirstPeriodStart is { } firstPeriodStart)
+        {
+            element.Add(new XAttribute("first-period-start", firstPeriodStart.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

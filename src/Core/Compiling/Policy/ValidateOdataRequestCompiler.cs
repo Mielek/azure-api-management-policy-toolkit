@@ -7,6 +7,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class ValidateOdataRequestCompiler : IMethodPolicyHandler
@@ -15,21 +17,42 @@ public class ValidateOdataRequestCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateOdataRequestConfig>(node, context, "validate-odata-request");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ValidateOdataRequestConfig>(
+            node, context, "validate-odata-request");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("validate-odata-request");
 
-        element.AddAttribute(values, nameof(ValidateOdataRequestConfig.ErrorVariableName), "error-variable-name");
-        element.AddAttribute(values, nameof(ValidateOdataRequestConfig.DefaultOdataVersion), "default-odata-version");
-        element.AddAttribute(values, nameof(ValidateOdataRequestConfig.MinOdataVersion), "min-odata-version");
-        element.AddAttribute(values, nameof(ValidateOdataRequestConfig.MaxOdataVersion), "max-odata-version");
-        element.AddAttribute(values, nameof(ValidateOdataRequestConfig.MaxSize), "max-size");
+        if (config.ErrorVariableName is { } errorVariableName)
+        {
+            element.Add(new XAttribute("error-variable-name", errorVariableName.ToXmlValue()));
+        }
+
+        if (config.DefaultOdataVersion is { } defaultOdataVersion)
+        {
+            element.Add(new XAttribute("default-odata-version", defaultOdataVersion.ToXmlValue()));
+        }
+
+        if (config.MinOdataVersion is { } minOdataVersion)
+        {
+            element.Add(new XAttribute("min-odata-version", minOdataVersion.ToXmlValue()));
+        }
+
+        if (config.MaxOdataVersion is { } maxOdataVersion)
+        {
+            element.Add(new XAttribute("max-odata-version", maxOdataVersion.ToXmlValue()));
+        }
+
+        if (config.MaxSize is { } maxSize)
+        {
+            element.Add(new XAttribute("max-size", maxSize.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

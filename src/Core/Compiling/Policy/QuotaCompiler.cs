@@ -17,18 +17,32 @@ public class QuotaCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<QuotaConfig>(node, context, "quota");
+        var configResult = CompiledConfigExtractor.Extract<LocalQuotaCompiledConfig>(
+            node, context, "quota");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("quota");
 
-        var isCallsAdded = element.AddAttribute(values, nameof(QuotaConfig.Calls), "calls");
-        var isBandwidthAdded = element.AddAttribute(values, nameof(QuotaConfig.Bandwidth), "bandwidth");
+        var isCallsAdded = false;
+        var isBandwidthAdded = false;
+
+        if (config.Calls is { } calls)
+        {
+            element.Add(new XAttribute("calls", calls.ToXmlValue()));
+            isCallsAdded = true;
+        }
+
+        if (config.Bandwidth is { } bandwidth)
+        {
+            element.Add(new XAttribute("bandwidth", bandwidth.ToXmlValue()));
+            isBandwidthAdded = true;
+        }
 
         if (!isCallsAdded && !isBandwidthAdded)
         {
@@ -42,18 +56,9 @@ public class QuotaCompiler : IMethodPolicyHandler
             return;
         }
 
-        if (!element.AddAttribute(values, nameof(QuotaConfig.RenewalPeriod), "renewal-period"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "quota",
-                nameof(QuotaConfig.RenewalPeriod)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
 
-        if (values.TryGetValue(nameof(QuotaConfig.Apis), out var apis))
+        if (config.Apis is { } apis)
         {
             foreach (var api in apis.UnnamedValues!)
             {
@@ -138,5 +143,13 @@ public class QuotaCompiler : IMethodPolicyHandler
         }
 
         return true;
+    }
+
+    private sealed class LocalQuotaCompiledConfig
+    {
+        public ExpressionValue<int>? Calls { get; init; }
+        public ExpressionValue<int>? Bandwidth { get; init; }
+        public required ExpressionValue<int> RenewalPeriod { get; init; }
+        public InitializerValue? Apis { get; init; }
     }
 }

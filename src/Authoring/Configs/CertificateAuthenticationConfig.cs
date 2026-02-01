@@ -40,7 +40,7 @@ public record CertificateAuthenticationConfig : IAuthenticationConfig
     /// This property must be used with Password and is mutually exclusive with Thumbprint and CertificateId.
     /// </remarks>
     [ExpressionAllowed]
-    public byte[]? Body { get; init; }
+    public string? Body { get; init; }
 
     /// <summary>
     /// Specifies the password for the client certificate, if the certificate is password-protected.

@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class GetAuthorizationContextCompiler : IMethodPolicyHandler
@@ -17,53 +19,36 @@ public class GetAuthorizationContextCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<GetAuthorizationContextConfig>(node, context, "get-authorization-context");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.GetAuthorizationContextConfig>(
+            node, context, "get-authorization-context");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("get-authorization-context");
 
-        if (!element.AddAttribute(values, nameof(GetAuthorizationContextConfig.ProviderId), "provider-id"))
+        element.Add(new XAttribute("provider-id", config.ProviderId.ToXmlValue()));
+        element.Add(new XAttribute("authorization-id", config.AuthorizationId.ToXmlValue()));
+        element.Add(new XAttribute("context-variable-name", config.ContextVariableName.ToXmlValue()));
+
+        if (config.IdentityType is { } identityType)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "get-authorization-context",
-                nameof(GetAuthorizationContextConfig.ProviderId)
-            ));
-            return;
+            element.Add(new XAttribute("identity-type", identityType.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(GetAuthorizationContextConfig.AuthorizationId), "authorization-id"))
+        if (config.Identity is { } identity)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "get-authorization-context",
-                nameof(GetAuthorizationContextConfig.AuthorizationId)
-            ));
-            return;
+            element.Add(new XAttribute("identity", identity.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(GetAuthorizationContextConfig.ContextVariableName),
-                "context-variable-name"))
+        if (config.IgnoreError is { } ignoreError)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "get-authorization-context",
-                nameof(GetAuthorizationContextConfig.ContextVariableName)
-            ));
-            return;
+            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
         }
-
-        element.AddAttribute(values, nameof(GetAuthorizationContextConfig.IdentityType), "identity-type");
-        element.AddAttribute(values, nameof(GetAuthorizationContextConfig.Identity), "identity");
-        element.AddAttribute(values, nameof(GetAuthorizationContextConfig.IgnoreError), "ignore-error");
 
         context.AddPolicy(element);
     }

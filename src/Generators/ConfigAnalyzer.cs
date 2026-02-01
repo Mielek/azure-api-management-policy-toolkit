@@ -158,8 +158,13 @@ internal class ConfigAnalyzer
 
     private static bool IsCollectionType(ITypeSymbol type)
     {
-        if (type is IArrayTypeSymbol)
+        if (type is IArrayTypeSymbol arrayType)
         {
+            // byte[] is treated as a scalar (binary blob), not a collection
+            if (arrayType.ElementType.SpecialType == SpecialType.System_Byte)
+            {
+                return false;
+            }
             return true;
         }
 

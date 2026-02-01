@@ -15,89 +15,50 @@ public class CheckHeaderCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.CheckHeader);
 
+    private sealed class LocalCheckHeaderCompiledConfig
+    {
+        public required ExpressionValue<string> Name { get; init; }
+        public required ExpressionValue<int> FailCheckHttpCode { get; init; }
+        public required ExpressionValue<string> FailCheckErrorMessage { get; init; }
+        public required ExpressionValue<bool> IgnoreCase { get; init; }
+        public required InitializerValue Values { get; init; }
+    }
+
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<CheckHeaderConfig>(node, context, "check-header");
+        var configResult = CompiledConfigExtractor.Extract<LocalCheckHeaderCompiledConfig>(
+            node, context, "check-header");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("check-header");
 
-        if (!element.AddAttribute(values, nameof(CheckHeaderConfig.Name), "name"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "check-header",
-                nameof(CheckHeaderConfig.Name)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("name", config.Name.ToXmlValue()));
+        element.Add(new XAttribute("failed-check-httpcode", config.FailCheckHttpCode.ToXmlValue()));
+        element.Add(new XAttribute("failed-check-error-message", config.FailCheckErrorMessage.ToXmlValue()));
+        element.Add(new XAttribute("ignore-case", config.IgnoreCase.ToXmlValue()));
 
-        if (!element.AddAttribute(values, nameof(CheckHeaderConfig.FailCheckHttpCode), "failed-check-httpcode"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "check-header",
-                nameof(CheckHeaderConfig.FailCheckHttpCode)
-            ));
-            return;
-        }
-
-        if (!element.AddAttribute(values, nameof(CheckHeaderConfig.FailCheckErrorMessage),
-                "failed-check-error-message"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "check-header",
-                nameof(CheckHeaderConfig.FailCheckErrorMessage)
-            ));
-            return;
-        }
-
-        if (!element.AddAttribute(values, nameof(CheckHeaderConfig.IgnoreCase), "ignore-case"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "check-header",
-                nameof(CheckHeaderConfig.IgnoreCase)
-            ));
-            return;
-        }
-
-        if (!values.TryGetValue(nameof(CheckHeaderConfig.Values), out var headerValues))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "check-header",
-                nameof(CheckHeaderConfig.Values)
-            ));
-            return;
-        }
-
-        var elements = (headerValues.UnnamedValues ?? [])
-            .Select(origin => new XElement("value", origin.Value!))
-            .ToArray<object>();
-        if (elements.Length == 0)
+        var values = config.Values.UnnamedValues ?? [];
+        if (values.Count == 0)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.RequiredParameterIsEmpty,
-                headerValues.Node.GetLocation(),
+                config.Values.Node.GetLocation(),
                 "check-header",
                 nameof(CheckHeaderConfig.Values)
             ));
             return;
         }
 
-        element.Add(elements);
+        foreach (var value in values)
+        {
+            element.Add(new XElement("value", value.Value!));
+        }
 
         context.AddPolicy(element);
     }

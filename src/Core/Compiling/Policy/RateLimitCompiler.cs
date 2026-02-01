@@ -17,46 +17,47 @@ public class RateLimitCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<RateLimitConfig>(node, context, "rate-limit");
+        var configResult = CompiledConfigExtractor.Extract<LocalRateLimitCompiledConfig>(
+            node, context, "rate-limit");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("rate-limit");
 
-        if (!element.AddAttribute(values, nameof(RateLimitConfig.Calls), "calls"))
+        element.Add(new XAttribute("calls", config.Calls.ToXmlValue()));
+        element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
+
+        if (config.RetryAfterHeaderName is { } retryAfterHeader)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "rate-limit-by-key",
-                nameof(RateLimitConfig.Calls)
-            ));
-            return;
+            element.Add(new XAttribute("retry-after-header-name", retryAfterHeader.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(RateLimitConfig.RenewalPeriod), "renewal-period"))
+        if (config.RetryAfterVariableName is { } retryAfterVar)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "rate-limit-by-key",
-                nameof(RateLimitConfig.RenewalPeriod)
-            ));
-            return;
+            element.Add(new XAttribute("retry-after-variable-name", retryAfterVar.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(RateLimitConfig.RetryAfterHeaderName), "retry-after-header-name");
-        element.AddAttribute(values, nameof(RateLimitConfig.RetryAfterVariableName), "retry-after-variable-name");
-        element.AddAttribute(values, nameof(RateLimitConfig.RemainingCallsHeaderName), "remaining-calls-header-name");
-        element.AddAttribute(values, nameof(RateLimitConfig.RemainingCallsVariableName),
-            "remaining-calls-variable-name");
-        element.AddAttribute(values, nameof(RateLimitConfig.TotalCallsHeaderName), "total-calls-header-name");
+        if (config.RemainingCallsHeaderName is { } remainingHeader)
+        {
+            element.Add(new XAttribute("remaining-calls-header-name", remainingHeader.ToXmlValue()));
+        }
 
-        if (values.TryGetValue(nameof(RateLimitConfig.Apis), out var apis))
+        if (config.RemainingCallsVariableName is { } remainingVar)
+        {
+            element.Add(new XAttribute("remaining-calls-variable-name", remainingVar.ToXmlValue()));
+        }
+
+        if (config.TotalCallsHeaderName is { } totalHeader)
+        {
+            element.Add(new XAttribute("total-calls-header-name", totalHeader.ToXmlValue()));
+        }
+
+        if (config.Apis is { } apis)
         {
             foreach (var api in apis.UnnamedValues!)
             {
@@ -126,5 +127,17 @@ public class RateLimitCompiler : IMethodPolicyHandler
         }
 
         return true;
+    }
+
+    private sealed class LocalRateLimitCompiledConfig
+    {
+        public required ExpressionValue<int> Calls { get; init; }
+        public required ExpressionValue<int> RenewalPeriod { get; init; }
+        public ExpressionValue<string>? RetryAfterHeaderName { get; init; }
+        public ExpressionValue<string>? RetryAfterVariableName { get; init; }
+        public ExpressionValue<string>? RemainingCallsHeaderName { get; init; }
+        public ExpressionValue<string>? RemainingCallsVariableName { get; init; }
+        public ExpressionValue<string>? TotalCallsHeaderName { get; init; }
+        public InitializerValue? Apis { get; init; }
     }
 }

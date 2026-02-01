@@ -105,6 +105,7 @@ public readonly struct ExpressionValue<T> : IEquatable<ExpressionValue<T>>
             null => string.Empty,
             bool b => b ? "true" : "false",
             Enum e => ToKebabCase(e.ToString()),
+            byte[] bytes => System.Text.Encoding.UTF8.GetString(bytes),
             _ => _constantValue.ToString() ?? string.Empty
         };
     }

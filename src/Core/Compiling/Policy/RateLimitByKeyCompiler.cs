@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class RateLimitByKeyCompiler : IMethodPolicyHandler
@@ -17,58 +19,56 @@ public class RateLimitByKeyCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<RateLimitByKeyConfig>(node, context, "rate-limit-by-key");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.RateLimitByKeyConfig>(
+            node, context, "rate-limit-by-key");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("rate-limit-by-key");
 
-        if (!element.AddAttribute(values, nameof(RateLimitByKeyConfig.Calls), "calls"))
+        element.Add(new XAttribute("calls", config.Calls.ToXmlValue()));
+        element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
+        element.Add(new XAttribute("counter-key", config.CounterKey.ToXmlValue()));
+
+        if (config.IncrementCondition is { } incrementCondition)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "rate-limit-by-key",
-                nameof(RateLimitByKeyConfig.Calls)
-            ));
-            return;
+            element.Add(new XAttribute("increment-condition", incrementCondition.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(RateLimitByKeyConfig.RenewalPeriod), "renewal-period"))
+        if (config.IncrementCount is { } incrementCount)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "rate-limit-by-key",
-                nameof(RateLimitByKeyConfig.RenewalPeriod)
-            ));
-            return;
+            element.Add(new XAttribute("increment-count", incrementCount.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(RateLimitByKeyConfig.CounterKey), "counter-key"))
+        if (config.RetryAfterHeaderName is { } retryAfterHeaderName)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "rate-limit-by-key",
-                nameof(RateLimitByKeyConfig.CounterKey)
-            ));
-            return;
+            element.Add(new XAttribute("retry-after-header-name", retryAfterHeaderName.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(RateLimitByKeyConfig.IncrementCondition), "increment-condition");
-        element.AddAttribute(values, nameof(RateLimitByKeyConfig.IncrementCount), "increment-count");
-        element.AddAttribute(values, nameof(RateLimitByKeyConfig.RetryAfterHeaderName), "retry-after-header-name");
-        element.AddAttribute(values, nameof(RateLimitByKeyConfig.RetryAfterVariableName), "retry-after-variable-name");
-        element.AddAttribute(values, nameof(RateLimitByKeyConfig.RemainingCallsHeaderName),
-            "remaining-calls-header-name");
-        element.AddAttribute(values, nameof(RateLimitByKeyConfig.RemainingCallsVariableName),
-            "remaining-calls-variable-name");
-        element.AddAttribute(values, nameof(RateLimitByKeyConfig.TotalCallsHeaderName), "total-calls-header-name");
+        if (config.RetryAfterVariableName is { } retryAfterVariableName)
+        {
+            element.Add(new XAttribute("retry-after-variable-name", retryAfterVariableName.ToXmlValue()));
+        }
+
+        if (config.RemainingCallsHeaderName is { } remainingCallsHeaderName)
+        {
+            element.Add(new XAttribute("remaining-calls-header-name", remainingCallsHeaderName.ToXmlValue()));
+        }
+
+        if (config.RemainingCallsVariableName is { } remainingCallsVariableName)
+        {
+            element.Add(new XAttribute("remaining-calls-variable-name", remainingCallsVariableName.ToXmlValue()));
+        }
+
+        if (config.TotalCallsHeaderName is { } totalCallsHeaderName)
+        {
+            element.Add(new XAttribute("total-calls-header-name", totalCallsHeaderName.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

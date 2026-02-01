@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class JsonToXmlCompiler : IMethodPolicyHandler
@@ -17,31 +19,44 @@ public class JsonToXmlCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<JsonToXmlConfig>(node, context, "json-to-xml");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.JsonToXmlConfig>(
+            node, context, "json-to-xml");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("json-to-xml");
-        if (!element.AddAttribute(values, nameof(JsonToXmlConfig.Apply), "apply"))
+
+        element.Add(new XAttribute("apply", config.Apply.ToXmlValue()));
+
+        if (config.ConsiderAcceptHeader is { } considerAcceptHeader)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "json-to-xml",
-                nameof(JsonToXmlConfig.Apply)
-            ));
-            return;
+            element.Add(new XAttribute("consider-accept-header", considerAcceptHeader.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(JsonToXmlConfig.ConsiderAcceptHeader), "consider-accept-header");
-        element.AddAttribute(values, nameof(JsonToXmlConfig.ParseDate), "parse-date");
-        element.AddAttribute(values, nameof(JsonToXmlConfig.NamespaceSeparator), "namespace-separator");
-        element.AddAttribute(values, nameof(JsonToXmlConfig.NamespacePrefix), "namespace-prefix");
-        element.AddAttribute(values, nameof(JsonToXmlConfig.AttributeBlockName), "attribute-block-name");
+        if (config.ParseDate is { } parseDate)
+        {
+            element.Add(new XAttribute("parse-date", parseDate.ToXmlValue()));
+        }
+
+        if (config.NamespaceSeparator is { } namespaceSeparator)
+        {
+            element.Add(new XAttribute("namespace-separator", namespaceSeparator.ToXmlValue()));
+        }
+
+        if (config.NamespacePrefix is { } namespacePrefix)
+        {
+            element.Add(new XAttribute("namespace-prefix", namespacePrefix.ToXmlValue()));
+        }
+
+        if (config.AttributeBlockName is { } attributeBlockName)
+        {
+            element.Add(new XAttribute("attribute-block-name", attributeBlockName.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

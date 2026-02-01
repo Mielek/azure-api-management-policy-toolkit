@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class ProxyCompiler : IMethodPolicyHandler
@@ -17,19 +19,31 @@ public class ProxyCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ProxyConfig>(node, context, "proxy");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ProxyConfig>(
+            node, context, "proxy");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
-        XElement? element = HandleProxy(context, node, values);
-        if (element is not null)
+        var config = configResult.Value;
+        var element = new XElement("proxy");
+
+        element.Add(new XAttribute("url", config.Url.ToXmlValue()));
+
+        if (config.Username is { } username)
         {
-            context.AddPolicy(element);
+            element.Add(new XAttribute("username", username.ToXmlValue()));
         }
+
+        if (config.Password is { } password)
+        {
+            element.Add(new XAttribute("password", password.ToXmlValue()));
+        }
+
+        context.AddPolicy(element);
     }
 
     public static void HandleProxy(IDocumentCompilationContext context, XElement element, InitializerValue value)

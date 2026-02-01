@@ -70,6 +70,14 @@ public static class ExpressionProcessor
             {
                 return ExpressionValue<T>.FromConstant((T)(object)literal.Token.ValueText);
             }
+
+            // Special case: byte[] properties represent base64-encoded strings in XML
+            // When a string literal is provided for byte[], convert it to byte[] via UTF8 encoding
+            if (typeof(T) == typeof(byte[]) && value is string stringValue)
+            {
+                var bytes = System.Text.Encoding.UTF8.GetBytes(stringValue);
+                return ExpressionValue<T>.FromConstant((T)(object)bytes);
+            }
             
             var converted = Convert.ChangeType(value, typeof(T));
             return ExpressionValue<T>.FromConstant((T)converted!);

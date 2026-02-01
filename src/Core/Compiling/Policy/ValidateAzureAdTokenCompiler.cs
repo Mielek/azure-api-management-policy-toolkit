@@ -17,51 +17,71 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateAzureAdTokenConfig>(node, context, "validate-azure-ad-token");
+        var configResult = CompiledConfigExtractor.Extract<LocalValidateAzureAdTokenCompiledConfig>(
+            node, context, "validate-azure-ad-token");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("validate-azure-ad-token");
 
-        if (!element.AddAttribute(values, nameof(ValidateAzureAdTokenConfig.TenantId), "tenant-id"))
+        element.Add(new XAttribute("tenant-id", config.TenantId.ToXmlValue()));
+
+        if (config.HeaderName is { } headerName)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "validate-azure-ad-token",
-                nameof(ValidateAzureAdTokenConfig.TenantId)
-            ));
-            return;
+            element.Add(new XAttribute("header-name", headerName.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(ValidateAzureAdTokenConfig.HeaderName), "header-name");
-        element.AddAttribute(values, nameof(ValidateAzureAdTokenConfig.QueryParameterName), "query-parameter-name");
-        element.AddAttribute(values, nameof(ValidateAzureAdTokenConfig.TokenValue), "token-value");
-        element.AddAttribute(values, nameof(ValidateAzureAdTokenConfig.FailedValidationHttpCode),
-            "failed-validation-httpcode");
-        element.AddAttribute(values, nameof(ValidateAzureAdTokenConfig.FailedValidationErrorMessage),
-            "failed-validation-error-message");
-        element.AddAttribute(values, nameof(ValidateAzureAdTokenConfig.OutputTokenVariableName),
-            "output-token-variable-name");
+        if (config.QueryParameterName is { } queryParam)
+        {
+            element.Add(new XAttribute("query-parameter-name", queryParam.ToXmlValue()));
+        }
 
-        GenericCompiler.HandleList(element, values, nameof(ValidateAzureAdTokenConfig.BackendApplicationIds),
-            "backend-application-ids", "application-id");
-        GenericCompiler.HandleList(element, values, nameof(ValidateAzureAdTokenConfig.ClientApplicationIds),
-            "client-application-ids",
-            "application-id");
-        GenericCompiler.HandleList(element, values, nameof(ValidateAzureAdTokenConfig.Audiences), "audiences",
-            "audience");
+        if (config.TokenValue is { } tokenValue)
+        {
+            element.Add(new XAttribute("token-value", tokenValue.ToXmlValue()));
+        }
 
-        if (values.TryGetValue(nameof(ValidateAzureAdTokenConfig.RequiredClaims), out InitializerValue? requiredClaims))
+        if (config.FailedValidationHttpCode is { } failedHttpCode)
+        {
+            element.Add(new XAttribute("failed-validation-httpcode", failedHttpCode.ToXmlValue()));
+        }
+
+        if (config.FailedValidationErrorMessage is { } failedMsg)
+        {
+            element.Add(new XAttribute("failed-validation-error-message", failedMsg.ToXmlValue()));
+        }
+
+        if (config.OutputTokenVariableName is { } outputVar)
+        {
+            element.Add(new XAttribute("output-token-variable-name", outputVar.ToXmlValue()));
+        }
+
+        if (config.BackendApplicationIds is { } backendIds)
+        {
+            GenericCompiler.HandleListFromInitializer(element, backendIds, "backend-application-ids", "application-id");
+        }
+
+        if (config.ClientApplicationIds is { } clientIds)
+        {
+            GenericCompiler.HandleListFromInitializer(element, clientIds, "client-application-ids", "application-id");
+        }
+
+        if (config.Audiences is { } audiences)
+        {
+            GenericCompiler.HandleListFromInitializer(element, audiences, "audiences", "audience");
+        }
+
+        if (config.RequiredClaims is { } requiredClaims)
         {
             element.Add(ClaimsConfigCompiler.HandleRequiredClaims(context, requiredClaims));
         }
 
-        if (values.TryGetValue(nameof(ValidateAzureAdTokenConfig.DecryptionKeys), out InitializerValue? decryptionKeys))
+        if (config.DecryptionKeys is { } decryptionKeys)
         {
             element.Add(HandleDecryptionKeys(context, decryptionKeys));
         }
@@ -102,5 +122,21 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
         }
 
         return listElement;
+    }
+
+    private sealed class LocalValidateAzureAdTokenCompiledConfig
+    {
+        public required ExpressionValue<string> TenantId { get; init; }
+        public ExpressionValue<string>? HeaderName { get; init; }
+        public ExpressionValue<string>? QueryParameterName { get; init; }
+        public ExpressionValue<string>? TokenValue { get; init; }
+        public ExpressionValue<int>? FailedValidationHttpCode { get; init; }
+        public ExpressionValue<string>? FailedValidationErrorMessage { get; init; }
+        public ExpressionValue<string>? OutputTokenVariableName { get; init; }
+        public InitializerValue? BackendApplicationIds { get; init; }
+        public InitializerValue? ClientApplicationIds { get; init; }
+        public InitializerValue? Audiences { get; init; }
+        public InitializerValue? RequiredClaims { get; init; }
+        public InitializerValue? DecryptionKeys { get; init; }
     }
 }

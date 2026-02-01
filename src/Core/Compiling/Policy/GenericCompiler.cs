@@ -19,6 +19,15 @@ public static class GenericCompiler
             return;
         }
 
+        HandleListFromInitializer(element, listInitializer, listName, elementName);
+    }
+
+    public static void HandleListFromInitializer(
+        XElement element,
+        InitializerValue listInitializer,
+        string listName,
+        string elementName)
+    {
         XElement listElement = new(listName);
         foreach (InitializerValue initializer in listInitializer.UnnamedValues ?? [])
         {

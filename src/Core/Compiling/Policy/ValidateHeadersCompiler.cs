@@ -17,43 +17,27 @@ public class ValidateHeadersCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateHeadersConfig>(node, context, "validate-headers");
+        var configResult = CompiledConfigExtractor.Extract<LocalValidateHeadersCompiledConfig>(
+            node, context, "validate-headers");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("validate-headers");
 
-        if (!element.AddAttribute(values, nameof(ValidateHeadersConfig.SpecifiedHeaderAction),
-                "specified-header-action"))
+        element.Add(new XAttribute("specified-header-action", config.SpecifiedHeaderAction.ToXmlValue()));
+        element.Add(new XAttribute("unspecified-header-action", config.UnspecifiedHeaderAction.ToXmlValue()));
+
+        if (config.ErrorsVariableName is { } errorsVar)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-headers",
-                nameof(ValidateHeadersConfig.SpecifiedHeaderAction)
-            ));
-            return;
+            element.Add(new XAttribute("errors-variable-name", errorsVar.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(ValidateHeadersConfig.UnspecifiedHeaderAction),
-                "unspecified-header-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-headers",
-                nameof(ValidateHeadersConfig.UnspecifiedHeaderAction)
-            ));
-            return;
-        }
-
-        element.AddAttribute(values, nameof(ValidateHeadersConfig.ErrorsVariableName), "errors-variable-name");
-
-        if (values.TryGetValue(nameof(ValidateHeadersConfig.Headers), out var headerValues))
+        if (config.Headers is { } headerValues)
         {
             HandleHeaders(context, headerValues, element);
         }
@@ -102,5 +86,13 @@ public class ValidateHeadersCompiler : IMethodPolicyHandler
 
             element.Add(header);
         }
+    }
+
+    private sealed class LocalValidateHeadersCompiledConfig
+    {
+        public required ExpressionValue<string> SpecifiedHeaderAction { get; init; }
+        public required ExpressionValue<string> UnspecifiedHeaderAction { get; init; }
+        public ExpressionValue<string>? ErrorsVariableName { get; init; }
+        public InitializerValue? Headers { get; init; }
     }
 }

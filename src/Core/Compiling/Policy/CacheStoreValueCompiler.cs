@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class CacheStoreValueCompiler : IMethodPolicyHandler
@@ -17,50 +19,26 @@ public class CacheStoreValueCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<CacheStoreValueConfig>(node, context, "cache-store-value");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.CacheStoreValueConfig>(
+            node, context, "cache-store-value");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("cache-store-value");
 
-        if (!element.AddAttribute(values, nameof(CacheStoreValueConfig.Key), "key"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-store-value",
-                nameof(CacheStoreValueConfig.Key)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("key", config.Key.ToXmlValue()));
+        element.Add(new XAttribute("value", config.Value.ToXmlValue()));
+        element.Add(new XAttribute("duration", config.Duration.ToXmlValue()));
 
-        if (!element.AddAttribute(values, nameof(CacheStoreValueConfig.Value), "value"))
+        if (config.CachingType is { } cachingType)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-store-value",
-                nameof(CacheStoreValueConfig.Value)
-            ));
-            return;
+            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
         }
-
-        if (!element.AddAttribute(values, nameof(CacheStoreValueConfig.Duration), "duration"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-store-value",
-                nameof(CacheStoreValueConfig.Duration)
-            ));
-            return;
-        }
-
-        element.AddAttribute(values, nameof(CacheStoreValueConfig.CachingType), "caching-type");
 
         context.AddPolicy(element);
     }

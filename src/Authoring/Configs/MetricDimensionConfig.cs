@@ -7,6 +7,7 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 /// Defines a dimension for token usage metrics.
 /// Each dimension is a key-value pair that adds context to the metric.
 /// </summary>
+[GenerateCompiledConfig]
 public class MetricDimensionConfig
 {
     /// <summary>

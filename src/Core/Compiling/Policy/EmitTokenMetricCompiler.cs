@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class LlmEmitTokenMetricCompiler()
@@ -22,6 +24,12 @@ public abstract class BaseEmitTokenMetricCompiler : IMethodPolicyHandler
     private readonly string _policyName;
     public string MethodName { get; }
 
+    private sealed class LocalEmitTokenMetricCompiledConfig
+    {
+        public ExpressionValue<string>? Namespace { get; init; }
+        public required InitializerValue Dimensions { get; init; }
+    }
+
     protected BaseEmitTokenMetricCompiler(string policyName, string methodName)
     {
         this._policyName = policyName;
@@ -30,35 +38,29 @@ public abstract class BaseEmitTokenMetricCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<EmitTokenMetricConfig>(node, context, _policyName);
+        var configResult = CompiledConfigExtractor.Extract<LocalEmitTokenMetricCompiledConfig>(
+            node, context, _policyName);
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement(_policyName);
 
-        element.AddAttribute(values, nameof(EmitTokenMetricConfig.Namespace), "namespace");
-
-        if (!values.TryGetValue(nameof(EmitTokenMetricConfig.Dimensions), out var dimensionsInitializer))
+        if (config.Namespace is { } ns)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                _policyName,
-                nameof(EmitTokenMetricConfig.Dimensions)
-            ));
-            return;
+            element.Add(new XAttribute("namespace", ns.ToXmlValue()));
         }
 
-        var dimensions = dimensionsInitializer.UnnamedValues ?? Array.Empty<InitializerValue>();
+        var dimensions = config.Dimensions.UnnamedValues ?? [];
         if (dimensions.Count == 0)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.RequiredParameterIsEmpty,
-                dimensionsInitializer.Node.GetLocation(),
+                config.Dimensions.Node.GetLocation(),
                 _policyName,
                 nameof(EmitTokenMetricConfig.Dimensions)
             ));
@@ -67,24 +69,33 @@ public abstract class BaseEmitTokenMetricCompiler : IMethodPolicyHandler
 
         foreach (var dimension in dimensions)
         {
-            if (!dimension.TryGetValues<MetricDimensionConfig>(out var result))
-            {
-                continue;
-            }
-
-            var dimensionElement = new XElement("dimension");
-            if (!dimensionElement.AddAttribute(result, nameof(MetricDimensionConfig.Name), "name"))
+            if (dimension.Node is not ExpressionSyntax dimensionExpression)
             {
                 context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
+                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
                     dimension.Node.GetLocation(),
                     $"{_policyName}.dimension",
-                    nameof(MetricDimensionConfig.Name)
+                    nameof(MetricDimensionConfig)
                 ));
                 continue;
             }
 
-            dimensionElement.AddAttribute(result, nameof(MetricDimensionConfig.Value), "value");
+            var dimConfigResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.MetricDimensionConfig>(
+                dimensionExpression, context, $"{_policyName}.dimension");
+
+            if (!dimConfigResult.IsSuccess)
+            {
+                dimConfigResult.ReportAll(context);
+                continue;
+            }
+
+            var dimConfig = dimConfigResult.Value;
+            var dimensionElement = new XElement("dimension");
+            dimensionElement.Add(new XAttribute("name", dimConfig.Name.ToXmlValue()));
+            if (dimConfig.Value is { } value)
+            {
+                dimensionElement.Add(new XAttribute("value", value.ToXmlValue()));
+            }
             element.Add(dimensionElement);
         }
 

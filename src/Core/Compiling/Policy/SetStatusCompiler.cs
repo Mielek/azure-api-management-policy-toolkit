@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class SetStatusCompiler : IMethodPolicyHandler
@@ -17,28 +19,20 @@ public class SetStatusCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<StatusConfig>(node, context, "set-status");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.StatusConfig>(
+            node, context, "set-status");
+        
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
 
-        var values = configResult.Value;
+        var config = configResult.Value;
         var statusElement = new XElement("set-status");
-
-        if (!statusElement.AddAttribute(values, nameof(StatusConfig.Code), "code"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "set-status",
-                nameof(StatusConfig.Code)
-            ));
-            return;
-        }
-
-        statusElement.AddAttribute(values, nameof(StatusConfig.Reason), "reason");
+        
+        statusElement.Add(new XAttribute("code", config.Code.ToXmlValue()));
+        statusElement.Add(new XAttribute("reason", config.Reason.ToXmlValue()));
 
         context.AddPolicy(statusElement);
     }

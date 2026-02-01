@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class AuthenticationManagedIdentityCompiler : IMethodPolicyHandler
@@ -17,31 +19,34 @@ public class AuthenticationManagedIdentityCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ManagedIdentityAuthenticationConfig>(node, context, "authentication-managed-identity");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ManagedIdentityAuthenticationConfig>(
+            node, context, "authentication-managed-identity");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("authentication-managed-identity");
 
-        if (!element.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.Resource), "resource"))
+        element.Add(new XAttribute("resource", config.Resource.ToXmlValue()));
+
+        if (config.ClientId is { } clientId)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "authentication-managed-identity",
-                nameof(ManagedIdentityAuthenticationConfig.Resource)
-            ));
-            return;
+            element.Add(new XAttribute("client-id", clientId.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.ClientId), "client-id");
-        element.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.OutputTokenVariableName),
-            "output-token-variable-name");
-        element.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.IgnoreError), "ignore-error");
+        if (config.OutputTokenVariableName is { } outputTokenVariableName)
+        {
+            element.Add(new XAttribute("output-token-variable-name", outputTokenVariableName.ToXmlValue()));
+        }
+
+        if (config.IgnoreError is { } ignoreError)
+        {
+            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

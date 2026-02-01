@@ -17,35 +17,31 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<LlmContentSafetyConfig>(node, context, "llm-content-safety");
+        var configResult = CompiledConfigExtractor.Extract<LocalLlmContentSafetyCompiledConfig>(
+            node, context, "llm-content-safety");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("llm-content-safety");
 
-        if (!element.AddAttribute(values, nameof(LlmContentSafetyConfig.BackendId), "backend-id"))
+        element.Add(new XAttribute("backend-id", config.BackendId.ToXmlValue()));
+
+        if (config.ShieldPrompt is { } shieldPrompt)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "llm-content-safety",
-                nameof(LlmContentSafetyConfig.BackendId)
-            ));
-            return;
+            element.Add(new XAttribute("shield-prompt", shieldPrompt.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(LlmContentSafetyConfig.ShieldPrompt), "shield-prompt");
-
-        if (values.TryGetValue(nameof(LlmContentSafetyConfig.Categories), out var categoriesValue))
+        if (config.Categories is { } categoriesValue)
         {
             HandleCategories(context, categoriesValue, element);
         }
 
-        if (values.TryGetValue(nameof(LlmContentSafetyConfig.BlockLists), out var blockListsValue))
+        if (config.BlockLists is { } blockListsValue)
         {
             HandleBlockLists(blockListsValue, element);
         }
@@ -120,5 +116,13 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
         }
 
         element.Add(blockListsElement);
+    }
+
+    private sealed class LocalLlmContentSafetyCompiledConfig
+    {
+        public required ExpressionValue<string> BackendId { get; init; }
+        public ExpressionValue<bool>? ShieldPrompt { get; init; }
+        public InitializerValue? Categories { get; init; }
+        public InitializerValue? BlockLists { get; init; }
     }
 }

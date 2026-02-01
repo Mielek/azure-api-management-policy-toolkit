@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class LlmTokenLimitCompiler()
@@ -31,42 +33,23 @@ public abstract class BaseTokenLimitCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<TokenLimitConfig>(node, context, _policyName);
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.TokenLimitConfig>(
+            node, context, _policyName);
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement(_policyName);
 
-        // Add required attributes
-        if (!element.AddAttribute(values, nameof(TokenLimitConfig.CounterKey), "counter-key"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                _policyName,
-                nameof(TokenLimitConfig.CounterKey)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("counter-key", config.CounterKey.ToXmlValue()));
+        element.Add(new XAttribute("estimate-prompt-token", config.EstimatePromptToken.ToXmlValue()));
 
-        if (!element.AddAttribute(values, nameof(TokenLimitConfig.EstimatePromptToken), "estimate-prompt-token"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                _policyName,
-                nameof(TokenLimitConfig.EstimatePromptToken)
-            ));
-            return;
-        }
-
-        var tokensPerMinuteAdded =
-            element.AddAttribute(values, nameof(TokenLimitConfig.TokensPerMinute), "tokens-per-minute");
-        var quotaAdded = element.AddAttribute(values, nameof(TokenLimitConfig.TokenQuota), "token-quota");
+        var tokensPerMinuteAdded = config.TokensPerMinute is not null;
+        var quotaAdded = config.TokenQuota is not null;
 
         if (tokensPerMinuteAdded == quotaAdded)
         {
@@ -80,20 +63,60 @@ public abstract class BaseTokenLimitCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.AddAttribute(values, nameof(TokenLimitConfig.TokenQuotaPeriod), "token-quota-period");
-        element.AddAttribute(values, nameof(TokenLimitConfig.RetryAfterHeaderName), "retry-after-header-name");
-        element.AddAttribute(values, nameof(TokenLimitConfig.RetryAfterVariableName), "retry-after-variable-name");
-        element.AddAttribute(values, nameof(TokenLimitConfig.RemainingQuotaTokensHeaderName),
-            "remaining-quota-tokens-header-name");
-        element.AddAttribute(values, nameof(TokenLimitConfig.RemainingQuotaTokensVariableName),
-            "remaining-quota-tokens-variable-name");
-        element.AddAttribute(values, nameof(TokenLimitConfig.RemainingTokensHeaderName),
-            "remaining-tokens-header-name");
-        element.AddAttribute(values, nameof(TokenLimitConfig.RemainingTokensVariableName),
-            "remaining-tokens-variable-name");
-        element.AddAttribute(values, nameof(TokenLimitConfig.TokensConsumedHeaderName), "tokens-consumed-header-name");
-        element.AddAttribute(values, nameof(TokenLimitConfig.TokensConsumedVariableName),
-            "tokens-consumed-variable-name");
+        if (config.TokensPerMinute is { } tokensPerMinute)
+        {
+            element.Add(new XAttribute("tokens-per-minute", tokensPerMinute.ToXmlValue()));
+        }
+
+        if (config.TokenQuota is { } tokenQuota)
+        {
+            element.Add(new XAttribute("token-quota", tokenQuota.ToXmlValue()));
+        }
+
+        if (config.TokenQuotaPeriod is { } tokenQuotaPeriod)
+        {
+            element.Add(new XAttribute("token-quota-period", tokenQuotaPeriod.ToXmlValue()));
+        }
+
+        if (config.RetryAfterHeaderName is { } retryAfterHeaderName)
+        {
+            element.Add(new XAttribute("retry-after-header-name", retryAfterHeaderName.ToXmlValue()));
+        }
+
+        if (config.RetryAfterVariableName is { } retryAfterVariableName)
+        {
+            element.Add(new XAttribute("retry-after-variable-name", retryAfterVariableName.ToXmlValue()));
+        }
+
+        if (config.RemainingQuotaTokensHeaderName is { } remainingQuotaTokensHeaderName)
+        {
+            element.Add(new XAttribute("remaining-quota-tokens-header-name", remainingQuotaTokensHeaderName.ToXmlValue()));
+        }
+
+        if (config.RemainingQuotaTokensVariableName is { } remainingQuotaTokensVariableName)
+        {
+            element.Add(new XAttribute("remaining-quota-tokens-variable-name", remainingQuotaTokensVariableName.ToXmlValue()));
+        }
+
+        if (config.RemainingTokensHeaderName is { } remainingTokensHeaderName)
+        {
+            element.Add(new XAttribute("remaining-tokens-header-name", remainingTokensHeaderName.ToXmlValue()));
+        }
+
+        if (config.RemainingTokensVariableName is { } remainingTokensVariableName)
+        {
+            element.Add(new XAttribute("remaining-tokens-variable-name", remainingTokensVariableName.ToXmlValue()));
+        }
+
+        if (config.TokensConsumedHeaderName is { } tokensConsumedHeaderName)
+        {
+            element.Add(new XAttribute("tokens-consumed-header-name", tokensConsumedHeaderName.ToXmlValue()));
+        }
+
+        if (config.TokensConsumedVariableName is { } tokensConsumedVariableName)
+        {
+            element.Add(new XAttribute("tokens-consumed-variable-name", tokensConsumedVariableName.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

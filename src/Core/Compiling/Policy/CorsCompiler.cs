@@ -17,38 +17,36 @@ public class CorsCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<CorsConfig>(node, context, "cors");
+        var configResult = CompiledConfigExtractor.Extract<LocalCorsCompiledConfig>(
+            node, context, "cors");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("cors");
 
-        element.AddAttribute(values, nameof(CorsConfig.AllowCredentials), "allow-credentials");
-        element.AddAttribute(values, nameof(CorsConfig.TerminateUnmatchedRequest), "terminate-unmatched-request");
-
-        if (!values.TryGetValue(nameof(CorsConfig.AllowedOrigins), out var allowedOrigins))
+        if (config.AllowCredentials is { } allowCredentials)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cors",
-                nameof(CorsConfig.AllowedOrigins)
-            ));
-            return;
+            element.Add(new XAttribute("allow-credentials", allowCredentials.ToXmlValue()));
         }
 
-        var origins = (allowedOrigins.UnnamedValues ?? [])
+        if (config.TerminateUnmatchedRequest is { } terminate)
+        {
+            element.Add(new XAttribute("terminate-unmatched-request", terminate.ToXmlValue()));
+        }
+
+        var origins = (config.AllowedOrigins.UnnamedValues ?? [])
             .Select(origin => new XElement("origin", origin.Value!))
             .ToArray<object>();
         if (origins.Length == 0)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.RequiredParameterIsEmpty,
-                allowedOrigins.Node.GetLocation(),
+                config.AllowedOrigins.Node.GetLocation(),
                 "cors",
                 nameof(CorsConfig.AllowedOrigins)
             ));
@@ -57,25 +55,14 @@ public class CorsCompiler : IMethodPolicyHandler
 
         element.Add(new XElement("allowed-origins", origins));
 
-        if (!values.TryGetValue(nameof(CorsConfig.AllowedHeaders), out var allowedHeaders))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cors",
-                nameof(CorsConfig.AllowedHeaders)
-            ));
-            return;
-        }
-
-        var headers = (allowedHeaders.UnnamedValues ?? [])
+        var headers = (config.AllowedHeaders.UnnamedValues ?? [])
             .Select(origin => new XElement("header", origin.Value!))
             .ToArray<object>();
         if (headers.Length == 0)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.RequiredParameterIsEmpty,
-                allowedHeaders.Node.GetLocation(),
+                config.AllowedHeaders.Node.GetLocation(),
                 "cors",
                 nameof(CorsConfig.AllowedHeaders)
             ));
@@ -84,11 +71,14 @@ public class CorsCompiler : IMethodPolicyHandler
 
         element.Add(new XElement("allowed-headers", headers));
 
-        if (values.TryGetValue(nameof(CorsConfig.AllowedMethods), out var allowedMethods))
+        if (config.AllowedMethods is { } allowedMethods)
         {
             var allowedMethodsElement = new XElement("allowed-methods");
-            allowedMethodsElement.AddAttribute(values, nameof(CorsConfig.PreflightResultMaxAge),
-                "preflight-result-max-age");
+            if (config.PreflightResultMaxAge is { } maxAge)
+            {
+                allowedMethodsElement.Add(new XAttribute("preflight-result-max-age", maxAge.ToXmlValue()));
+            }
+
             var methods = (allowedMethods.UnnamedValues ?? [])
                 .Select(m => new XElement("method", m.Value!))
                 .ToArray<object>();
@@ -106,7 +96,7 @@ public class CorsCompiler : IMethodPolicyHandler
             element.Add(allowedMethodsElement);
         }
 
-        if (values.TryGetValue(nameof(CorsConfig.ExposeHeaders), out var exposeHeaders))
+        if (config.ExposeHeaders is { } exposeHeaders)
         {
             var exposeHeadersElements = (exposeHeaders.UnnamedValues ?? [])
                 .Select(h => new XElement("header", h.Value!))
@@ -125,5 +115,16 @@ public class CorsCompiler : IMethodPolicyHandler
         }
 
         context.AddPolicy(element);
+    }
+
+    private sealed class LocalCorsCompiledConfig
+    {
+        public ExpressionValue<bool>? AllowCredentials { get; init; }
+        public ExpressionValue<string>? TerminateUnmatchedRequest { get; init; }
+        public required InitializerValue AllowedOrigins { get; init; }
+        public InitializerValue? AllowedMethods { get; init; }
+        public ExpressionValue<uint>? PreflightResultMaxAge { get; init; }
+        public required InitializerValue AllowedHeaders { get; init; }
+        public InitializerValue? ExposeHeaders { get; init; }
     }
 }

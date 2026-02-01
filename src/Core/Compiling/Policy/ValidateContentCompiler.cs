@@ -17,60 +17,35 @@ public class ValidateContentCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateContentConfig>(node, context, "validate-content");
+        var configResult = CompiledConfigExtractor.Extract<LocalValidateContentCompiledConfig>(
+            node, context, "validate-content");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("validate-content");
 
-        if (!element.AddAttribute(values, nameof(ValidateContentConfig.UnspecifiedContentTypeAction),
-                "unspecified-content-type-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-content",
-                nameof(ValidateContentConfig.UnspecifiedContentTypeAction)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("unspecified-content-type-action", config.UnspecifiedContentTypeAction.ToXmlValue()));
+        element.Add(new XAttribute("max-size", config.MaxSize.ToXmlValue()));
+        element.Add(new XAttribute("size-exceeded-action", config.SizeExceededAction.ToXmlValue()));
 
-        if (!element.AddAttribute(values, nameof(ValidateContentConfig.MaxSize), "max-size"))
+        if (config.ErrorsVariableName is { } errorsVar)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-content",
-                nameof(ValidateContentConfig.MaxSize)
-            ));
-            return;
+            element.Add(new XAttribute("errors-variable-name", errorsVar.ToXmlValue()));
         }
-
-        if (!element.AddAttribute(values, nameof(ValidateContentConfig.SizeExceededAction), "size-exceeded-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-content",
-                nameof(ValidateContentConfig.SizeExceededAction)
-            ));
-            return;
-        }
-
-        element.AddAttribute(values, nameof(ValidateContentConfig.ErrorsVariableName), "errors-variable-name");
 
         // Handle ContentTypeMap
-        if (values.TryGetValue(nameof(ValidateContentConfig.ContentTypeMap), out var contentTypeMapValue))
+        if (config.ContentTypeMap is { } contentTypeMapValue)
         {
             HandleContentTypeMap(context, contentTypeMapValue, element);
         }
 
         // Handle ContentTypes
-        if (values.TryGetValue(nameof(ValidateContentConfig.Contents), out var contentTypesValue))
+        if (config.Contents is { } contentTypesValue)
         {
             HandleContents(context, contentTypesValue, element);
         }
@@ -195,5 +170,15 @@ public class ValidateContentCompiler : IMethodPolicyHandler
 
             parentElement.Add(contentTypeElement);
         }
+    }
+
+    private sealed class LocalValidateContentCompiledConfig
+    {
+        public required ExpressionValue<string> UnspecifiedContentTypeAction { get; init; }
+        public required ExpressionValue<int> MaxSize { get; init; }
+        public required ExpressionValue<string> SizeExceededAction { get; init; }
+        public ExpressionValue<string>? ErrorsVariableName { get; init; }
+        public InitializerValue? ContentTypeMap { get; init; }
+        public InitializerValue? Contents { get; init; }
     }
 }

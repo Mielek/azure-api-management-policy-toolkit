@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class XmlToJsonCompiler : IMethodPolicyHandler
@@ -17,40 +19,30 @@ public class XmlToJsonCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<XmlToJsonConfig>(node, context, "xml-to-json");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.XmlToJsonConfig>(
+            node, context, "xml-to-json");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("xml-to-json");
 
-        if (!element.AddAttribute(values, nameof(XmlToJsonConfig.Kind), "kind"))
+        element.Add(new XAttribute("kind", config.Kind.ToXmlValue()));
+        element.Add(new XAttribute("apply", config.Apply.ToXmlValue()));
+
+        if (config.ConsiderAcceptHeader is { } considerAcceptHeader)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "xml-to-json",
-                nameof(XmlToJsonConfig.Kind)
-            ));
-            return;
+            element.Add(new XAttribute("consider-accept-header", considerAcceptHeader.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(XmlToJsonConfig.Apply), "apply"))
+        if (config.AlwaysArrayChildElements is { } alwaysArrayChildElements)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "xml-to-json",
-                nameof(XmlToJsonConfig.Apply)
-            ));
-            return;
+            element.Add(new XAttribute("always-array-child-elements", alwaysArrayChildElements.ToXmlValue()));
         }
-
-        element.AddAttribute(values, nameof(XmlToJsonConfig.ConsiderAcceptHeader), "consider-accept-header");
-        element.AddAttribute(values, nameof(XmlToJsonConfig.AlwaysArrayChildElements), "always-array-child-elements");
 
         context.AddPolicy(element);
     }

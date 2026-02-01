@@ -6,41 +6,45 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class ValidateStatusCodeCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IOutboundContext.ValidateStatusCode);
 
+    private sealed class LocalValidateStatusCodeConfigCompiledConfig
+    {
+        public required ExpressionValue<string> UnspecifiedStatusCodeAction { get; init; }
+        public ExpressionValue<string>? ErrorVariableName { get; init; }
+        public InitializerValue? StatusCodes { get; init; }
+    }
+
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateStatusCodeConfig>(node, context, "validate-status-code");
+        var configResult = CompiledConfigExtractor.Extract<LocalValidateStatusCodeConfigCompiledConfig>(
+            node, context, "validate-status-code");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
-        XElement element = new("validate-status-code");
+        var config = configResult.Value;
+        var element = new XElement("validate-status-code");
 
-        if (!element.AddAttribute(values, nameof(ValidateStatusCodeConfig.UnspecifiedStatusCodeAction),
-                "unspecified-status-code-action"))
+        element.Add(new XAttribute("unspecified-status-code-action", config.UnspecifiedStatusCodeAction.ToXmlValue()));
+
+        if (config.ErrorVariableName is { } errorVariableName)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-status-code",
-                nameof(ValidateStatusCodeConfig.UnspecifiedStatusCodeAction)
-            ));
-            return;
+            element.Add(new XAttribute("error-variable-name", errorVariableName.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(ValidateStatusCodeConfig.ErrorVariableName), "error-variable-name");
-
-        if (values.TryGetValue(nameof(ValidateStatusCodeConfig.StatusCodes), out var statusCodesValue))
+        if (config.StatusCodes is { } statusCodes)
         {
-            HandleStatusCodes(context, statusCodesValue, element);
+            HandleStatusCodes(context, statusCodes, element);
         }
 
         context.AddPolicy(element);
@@ -51,7 +55,7 @@ public class ValidateStatusCodeCompiler : IMethodPolicyHandler
     {
         foreach (var statusCodeValue in statusCodesValue.UnnamedValues ?? [])
         {
-            if (!statusCodeValue.TryGetValues<ValidateStatusCode>(out var validateStatusCodeValues))
+            if (statusCodeValue.Node is not ExpressionSyntax statusCodeExpression)
             {
                 context.Report(Diagnostic.Create(
                     CompilationErrors.PolicyArgumentIsNotOfRequiredType,
@@ -62,29 +66,19 @@ public class ValidateStatusCodeCompiler : IMethodPolicyHandler
                 continue;
             }
 
-            XElement statusCodeElement = new("status-code");
-            if (!statusCodeElement.AddAttribute(validateStatusCodeValues, nameof(ValidateStatusCode.Code), "code"))
+            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.ValidateStatusCode>(
+                statusCodeExpression, context, "validate-status-code.status-code");
+
+            if (!configResult.IsSuccess)
             {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    statusCodeValue.Node.GetLocation(),
-                    "validate-status-code.status-code",
-                    nameof(ValidateStatusCode.Code)
-                ));
+                configResult.ReportAll(context);
                 continue;
             }
 
-            if (!statusCodeElement.AddAttribute(validateStatusCodeValues, nameof(ValidateStatusCode.Action), "action"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    statusCodeValue.Node.GetLocation(),
-                    "validate-status-code.status-code",
-                    nameof(ValidateStatusCode.Action)
-                ));
-                continue;
-            }
-
+            var config = configResult.Value;
+            var statusCodeElement = new XElement("status-code");
+            statusCodeElement.Add(new XAttribute("code", config.Code.ToXmlValue()));
+            statusCodeElement.Add(new XAttribute("action", config.Action.ToXmlValue()));
             parentElement.Add(statusCodeElement);
         }
     }

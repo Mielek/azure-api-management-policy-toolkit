@@ -9,126 +9,125 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class InvokeDarpBindingCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.InvokeDarpBinding);
 
+    private sealed class LocalInvokeDarpBindingCompiledConfig
+    {
+        public required ExpressionValue<string> Name { get; init; }
+        public ExpressionValue<string>? Operation { get; init; }
+        public ExpressionValue<bool>? IgnoreError { get; init; }
+        public ExpressionValue<string>? ResponseVariableName { get; init; }
+        public ExpressionValue<int>? Timeout { get; init; }
+        public ExpressionValue<string>? Template { get; init; }
+        public ExpressionValue<string>? ContentType { get; init; }
+        public InitializerValue? MetaData { get; init; }
+        public ExpressionValue<string>? Data { get; init; }
+    }
+
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<InvokeDarpBindingConfig>(node, context, "invoke-darp-binding");
+        var configResult = CompiledConfigExtractor.Extract<LocalInvokeDarpBindingCompiledConfig>(
+            node, context, "invoke-darp-binding");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
-        XElement element = new("invoke-darp-binding");
+        var config = configResult.Value;
+        var element = new XElement("invoke-darp-binding");
 
-        // Add the required Name attribute
-        if (!element.AddAttribute(values, nameof(InvokeDarpBindingConfig.Name), "name"))
+        element.Add(new XAttribute("name", config.Name.ToXmlValue()));
+
+        if (config.Operation is { } operation)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "invoke-darp-binding",
-                nameof(InvokeDarpBindingConfig.Name)
-            ));
-            return;
+            element.Add(new XAttribute("operation", operation.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(InvokeDarpBindingConfig.Operation), "operation");
-        element.AddAttribute(values, nameof(InvokeDarpBindingConfig.IgnoreError), "ignore-error");
-        element.AddAttribute(values, nameof(InvokeDarpBindingConfig.ResponseVariableName), "response-variable-name");
-        element.AddAttribute(values, nameof(InvokeDarpBindingConfig.Timeout), "timeout");
-        element.AddAttribute(values, nameof(InvokeDarpBindingConfig.Template), "template");
-        element.AddAttribute(values, nameof(InvokeDarpBindingConfig.ContentType), "content-type");
-
-        if (values.TryGetValue(nameof(InvokeDarpBindingConfig.MetaData), out InitializerValue? mataDataValue))
+        if (config.IgnoreError is { } ignoreError)
         {
-            HandleMataData(context, mataDataValue, element);
+            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
         }
 
-        if (values.TryGetValue(nameof(InvokeDarpBindingConfig.Data), out InitializerValue? dataValue))
+        if (config.ResponseVariableName is { } responseVariableName)
         {
-            element.Add(new XElement("data", dataValue.Value!));
+            element.Add(new XAttribute("response-variable-name", responseVariableName.ToXmlValue()));
+        }
+
+        if (config.Timeout is { } timeout)
+        {
+            element.Add(new XAttribute("timeout", timeout.ToXmlValue()));
+        }
+
+        if (config.Template is { } template)
+        {
+            element.Add(new XAttribute("template", template.ToXmlValue()));
+        }
+
+        if (config.ContentType is { } contentType)
+        {
+            element.Add(new XAttribute("content-type", contentType.ToXmlValue()));
+        }
+
+        if (config.MetaData is { } metaData)
+        {
+            HandleMetaData(context, metaData, element);
+        }
+
+        if (config.Data is { } data)
+        {
+            element.Add(new XElement("data", data.ToXmlValue()));
         }
 
         context.AddPolicy(element);
     }
 
-    private static void HandleMataData(IDocumentCompilationContext context, InitializerValue mataDataValue,
+    private static void HandleMetaData(IDocumentCompilationContext context, InitializerValue metaDataValue,
         XElement parentElement)
     {
-        if (mataDataValue.UnnamedValues is null || mataDataValue.UnnamedValues.Count == 0)
+        if (metaDataValue.UnnamedValues is null || metaDataValue.UnnamedValues.Count == 0)
         {
             return;
         }
 
         var element = new XElement("metadata");
 
-        foreach (InitializerValue item in mataDataValue.UnnamedValues ?? [])
+        foreach (var item in metaDataValue.UnnamedValues)
         {
-            if (!item.TryGetValues<DarpMetaData>(out var mataDataValues) || mataDataValues is null)
+            if (item.Node is not ExpressionSyntax itemExpression)
             {
                 context.Report(Diagnostic.Create(
                     CompilationErrors.PolicyArgumentIsNotOfRequiredType,
                     item.Node.GetLocation(),
-                    "invoke-darp-binding.matadata",
+                    "invoke-darp-binding.metadata",
                     nameof(DarpMetaData)
                 ));
                 continue;
             }
 
-            XElement mataDataElement = new("item");
+            var itemConfigResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.DarpMetaData>(
+                itemExpression, context, "invoke-darp-binding.metadata.item");
 
-            if (!mataDataElement.AddAttribute(mataDataValues, nameof(DarpMetaData.Key), "key"))
+            if (!itemConfigResult.IsSuccess)
             {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    item.Node.GetLocation(),
-                    "invoke-darp-binding.matadata.item",
-                    nameof(DarpMetaData.Key)
-                ));
+                itemConfigResult.ReportAll(context);
                 continue;
             }
 
-            if (!mataDataValues.TryGetValue(nameof(DarpMetaData.Value), out var value) || value.Value is null)
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    item.Node.GetLocation(),
-                    "invoke-darp-binding.matadata.item",
-                    nameof(DarpMetaData.Value)
-                ));
-                continue;
-            }
-
-            mataDataElement.Value = value.Value;
-
-            element.Add(mataDataElement);
+            var itemConfig = itemConfigResult.Value;
+            var metaDataElement = new XElement("item");
+            metaDataElement.Add(new XAttribute("key", itemConfig.Key.ToXmlValue()));
+            metaDataElement.Value = itemConfig.Value.ToXmlValue();
+            element.Add(metaDataElement);
         }
 
         parentElement.Add(element);
-    }
-
-    private static void HandleData(IDocumentCompilationContext context, InitializerValue dataValue,
-        XElement parentElement)
-    {
-        if (dataValue.Value is null)
-        {
-            return;
-        }
-
-        XElement dataElement = new("data");
-
-        foreach (InitializerValue item in dataValue.UnnamedValues ?? [])
-        {
-            dataElement.Add(new XElement("item", item.Value));
-        }
-
-        parentElement.Add(dataElement);
     }
 }

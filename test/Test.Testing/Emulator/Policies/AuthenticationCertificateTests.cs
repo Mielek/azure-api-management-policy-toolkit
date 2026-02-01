@@ -41,8 +41,8 @@ public class AuthenticationCertificateTests
                 });
         }
 
-        public byte[] GetCertBody(IExpressionContext context) =>
-            context.Deployment.Certificates["someKey"].Export(X509ContentType.Pfx, "testPass");
+        public string GetCertBody(IExpressionContext context) =>
+            Convert.ToBase64String(context.Deployment.Certificates["someKey"].Export(X509ContentType.Pfx, "testPass"));
     }
 
     [TestMethod]

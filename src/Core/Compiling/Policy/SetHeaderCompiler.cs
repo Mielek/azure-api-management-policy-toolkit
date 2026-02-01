@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class AppendHeaderCompiler() : BaseSetHeaderCompiler(nameof(IInboundContext.AppendHeader), "append");
@@ -73,7 +75,7 @@ public abstract class BaseSetHeaderCompiler : IMethodPolicyHandler
     {
         foreach (var header in headers.UnnamedValues!)
         {
-            if (!header.TryGetValues<HeaderConfig>(out var headerValues))
+            if (header.Node is not ExpressionSyntax headerExpression)
             {
                 context.Report(Diagnostic.Create(
                     CompilationErrors.PolicyArgumentIsNotOfRequiredType,
@@ -84,26 +86,30 @@ public abstract class BaseSetHeaderCompiler : IMethodPolicyHandler
                 continue;
             }
 
-            var headerElement = new XElement("set-header");
-            if (!headerElement.AddAttribute(headerValues, nameof(HeaderConfig.Name), "name"))
+            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.HeaderConfig>(
+                headerExpression, context, $"{root.Name}.set-header");
+
+            if (!configResult.IsSuccess)
             {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    header.Node.GetLocation(),
-                    $"{root.Name}.set-header",
-                    nameof(HeaderConfig.Name)
-                ));
+                configResult.ReportAll(context);
                 continue;
             }
 
-            headerElement.AddAttribute(headerValues, nameof(HeaderConfig.ExistsAction), "exists-action");
-
-            if (headerValues.TryGetValue(nameof(HeaderConfig.Values), out var values) &&
-                values.UnnamedValues is not null)
+            var config = configResult.Value;
+            var headerElement = new XElement("set-header");
+            
+            headerElement.Add(new XAttribute("name", config.Name.ToXmlValue()));
+            
+            if (config.ExistsAction is { } existsAction)
             {
-                foreach (var value in values.UnnamedValues)
+                headerElement.Add(new XAttribute("exists-action", existsAction.ToXmlValue()));
+            }
+
+            if (config.Values is not null)
+            {
+                foreach (var value in config.Values)
                 {
-                    headerElement.Add(new XElement("value", value.Value!));
+                    headerElement.Add(new XElement("value", value.ToXmlValue()));
                 }
             }
 

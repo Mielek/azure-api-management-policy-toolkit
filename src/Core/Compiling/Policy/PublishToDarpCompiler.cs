@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class PublishToDarpCompiler : IMethodPolicyHandler
@@ -17,46 +19,50 @@ public class PublishToDarpCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<PublishToDarpConfig>(node, context, "publish-to-darp");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.PublishToDarpConfig>(
+            node, context, "publish-to-darp");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("publish-to-darp");
 
-        if (!element.AddAttribute(values, nameof(PublishToDarpConfig.Topic), "topic"))
+        element.Add(new XAttribute("topic", config.Topic.ToXmlValue()));
+        element.Value = config.Content.ToXmlValue();
+
+        if (config.PubSubName is { } pubSubName)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "publish-to-darp",
-                nameof(PublishToDarpConfig.Topic)
-            ));
-            return;
+            element.Add(new XAttribute("pub-sub-name", pubSubName.ToXmlValue()));
         }
 
-        if (!values.TryGetValue(nameof(PublishToDarpConfig.Content), out var contentValue))
+        if (config.IgnoreError is { } ignoreError)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "publish-to-darp",
-                nameof(PublishToDarpConfig.Content)
-            ));
-            return;
+            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
         }
 
-        element.Value = contentValue.Value!;
+        if (config.ResponseVariableName is { } responseVariableName)
+        {
+            element.Add(new XAttribute("response-variable-name", responseVariableName.ToXmlValue()));
+        }
 
-        element.AddAttribute(values, nameof(PublishToDarpConfig.PubSubName), "pub-sub-name");
-        element.AddAttribute(values, nameof(PublishToDarpConfig.IgnoreError), "ignore-error");
-        element.AddAttribute(values, nameof(PublishToDarpConfig.ResponseVariableName), "response-variable-name");
-        element.AddAttribute(values, nameof(PublishToDarpConfig.Timeout), "timeout");
-        element.AddAttribute(values, nameof(PublishToDarpConfig.Template), "template");
-        element.AddAttribute(values, nameof(PublishToDarpConfig.ContentType), "content-type");
+        if (config.Timeout is { } timeout)
+        {
+            element.Add(new XAttribute("timeout", timeout.ToXmlValue()));
+        }
+
+        if (config.Template is { } template)
+        {
+            element.Add(new XAttribute("template", template.ToXmlValue()));
+        }
+
+        if (config.ContentType is { } contentType)
+        {
+            element.Add(new XAttribute("content-type", contentType.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

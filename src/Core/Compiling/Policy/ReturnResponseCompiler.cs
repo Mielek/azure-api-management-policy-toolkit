@@ -15,33 +15,46 @@ public class ReturnResponseCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ReturnResponseConfig>(node, context, "return-response");
+        var configResult = CompiledConfigExtractor.Extract<LocalReturnResponseCompiledConfig>(
+            node, context, "return-response");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("return-response");
 
-        element.AddAttribute(values, nameof(ReturnResponseConfig.ResponseVariableName), "response-variable-name");
+        if (config.ResponseVariableName is { } responseVar)
+        {
+            element.Add(new XAttribute("response-variable-name", responseVar.ToXmlValue()));
+        }
 
-        if (values.TryGetValue(nameof(ReturnResponseConfig.Status), out var statusConfig))
+        if (config.Status is { } statusConfig)
         {
             SetStatusCompiler.HandleStatus(context, element, statusConfig);
         }
 
-        if (values.TryGetValue(nameof(ReturnResponseConfig.Headers), out var headers))
+        if (config.Headers is { } headers)
         {
             BaseSetHeaderCompiler.HandleHeaders(context, element, headers);
         }
 
-        if (values.TryGetValue(nameof(ReturnResponseConfig.Body), out var body))
+        if (config.Body is { } body)
         {
             SetBodyCompiler.HandleBody(context, element, body);
         }
 
         context.AddPolicy(element);
+    }
+
+    private sealed class LocalReturnResponseCompiledConfig
+    {
+        public ExpressionValue<string>? ResponseVariableName { get; init; }
+        public InitializerValue? Status { get; init; }
+        public InitializerValue? Headers { get; init; }
+        public InitializerValue? Body { get; init; }
     }
 }

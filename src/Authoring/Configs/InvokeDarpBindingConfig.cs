@@ -61,6 +61,7 @@ public record InvokeDarpBindingConfig
 /// <summary>
 /// Represents metadata for a Dapr binding invocation.
 /// </summary>
+[GenerateCompiledConfig]
 public record DarpMetaData
 {
     /// <summary>

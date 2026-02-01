@@ -17,22 +17,41 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateJwtConfig>(node, context, "validate-jwt");
+        var configResult = CompiledConfigExtractor.Extract<LocalValidateJwtCompiledConfig>(
+            node, context, "validate-jwt");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("validate-jwt");
 
-        if (new[]
-            {
-                element.AddAttribute(values, nameof(ValidateJwtConfig.HeaderName), "header-name"),
-                element.AddAttribute(values, nameof(ValidateJwtConfig.QueryParameterName), "query-parameter-name"),
-                element.AddAttribute(values, nameof(ValidateJwtConfig.TokenValue), "token-value"),
-            }.Count(b => b) != 1)
+        var headerNameAdded = false;
+        var queryParamAdded = false;
+        var tokenValueAdded = false;
+
+        if (config.HeaderName is { } headerName)
+        {
+            element.Add(new XAttribute("header-name", headerName.ToXmlValue()));
+            headerNameAdded = true;
+        }
+
+        if (config.QueryParameterName is { } queryParam)
+        {
+            element.Add(new XAttribute("query-parameter-name", queryParam.ToXmlValue()));
+            queryParamAdded = true;
+        }
+
+        if (config.TokenValue is { } tokenValue)
+        {
+            element.Add(new XAttribute("token-value", tokenValue.ToXmlValue()));
+            tokenValueAdded = true;
+        }
+
+        if (new[] { headerNameAdded, queryParamAdded, tokenValueAdded }.Count(b => b) != 1)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.OnlyOneOfTreeShouldBeDefined,
@@ -45,27 +64,68 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.AddAttribute(values, nameof(ValidateJwtConfig.FailedValidationHttpCode), "failed-validation-httpcode");
-        element.AddAttribute(values, nameof(ValidateJwtConfig.FailedValidationErrorMessage),
-            "failed-validation-error-message");
-        element.AddAttribute(values, nameof(ValidateJwtConfig.RequireExpirationTime), "require-expiration-time");
-        element.AddAttribute(values, nameof(ValidateJwtConfig.RequireScheme), "require-scheme");
-        element.AddAttribute(values, nameof(ValidateJwtConfig.RequireSignedTokens), "require-signed-tokens");
-        element.AddAttribute(values, nameof(ValidateJwtConfig.ClockSkew), "clock-skew");
-        element.AddAttribute(values, nameof(ValidateJwtConfig.OutputTokenVariableName), "output-token-variable-name");
+        if (config.FailedValidationHttpCode is { } failedHttpCode)
+        {
+            element.Add(new XAttribute("failed-validation-httpcode", failedHttpCode.ToXmlValue()));
+        }
 
-        if (values.TryGetValue(nameof(ValidateJwtConfig.OpenIdConfigs), out var openIdConfigs))
+        if (config.FailedValidationErrorMessage is { } failedMsg)
+        {
+            element.Add(new XAttribute("failed-validation-error-message", failedMsg.ToXmlValue()));
+        }
+
+        if (config.RequireExpirationTime is { } requireExp)
+        {
+            element.Add(new XAttribute("require-expiration-time", requireExp.ToXmlValue()));
+        }
+
+        if (config.RequireScheme is { } requireScheme)
+        {
+            element.Add(new XAttribute("require-scheme", requireScheme.ToXmlValue()));
+        }
+
+        if (config.RequireSignedTokens is { } requireSigned)
+        {
+            element.Add(new XAttribute("require-signed-tokens", requireSigned.ToXmlValue()));
+        }
+
+        if (config.ClockSkew is { } clockSkew)
+        {
+            element.Add(new XAttribute("clock-skew", clockSkew.ToXmlValue()));
+        }
+
+        if (config.OutputTokenVariableName is { } outputVar)
+        {
+            element.Add(new XAttribute("output-token-variable-name", outputVar.ToXmlValue()));
+        }
+
+        if (config.OpenIdConfigs is { } openIdConfigs)
         {
             var openIdElements = HandleOpenIdConfigs(context, openIdConfigs);
             element.Add(openIdElements);
         }
 
-        HandleKeys(context, element, values, nameof(ValidateJwtConfig.IssuerSigningKeys), "issuer-signing-keys");
-        HandleKeys(context, element, values, nameof(ValidateJwtConfig.DescriptionKeys), "decryption-keys");
-        GenericCompiler.HandleList(element, values, nameof(ValidateJwtConfig.Audiences), "audiences", "audience");
-        GenericCompiler.HandleList(element, values, nameof(ValidateJwtConfig.Issuers), "issuers", "issuer");
+        if (config.IssuerSigningKeys is { } issuerSigningKeys)
+        {
+            HandleKeys(context, element, issuerSigningKeys, "issuer-signing-keys");
+        }
 
-        if (values.TryGetValue(nameof(ValidateJwtConfig.RequiredClaims), out var requiredClaims))
+        if (config.DescriptionKeys is { } descriptionKeys)
+        {
+            HandleKeys(context, element, descriptionKeys, "decryption-keys");
+        }
+
+        if (config.Audiences is { } audiences)
+        {
+            GenericCompiler.HandleListFromInitializer(element, audiences, "audiences", "audience");
+        }
+
+        if (config.Issuers is { } issuers)
+        {
+            GenericCompiler.HandleListFromInitializer(element, issuers, "issuers", "issuer");
+        }
+
+        if (config.RequiredClaims is { } requiredClaims)
         {
             XElement claimsElement = ClaimsConfigCompiler.HandleRequiredClaims(context, requiredClaims);
             element.Add(claimsElement);
@@ -111,15 +171,9 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
     private static void HandleKeys(
         IDocumentCompilationContext context,
         XElement element,
-        IReadOnlyDictionary<string, InitializerValue> values,
-        string key,
+        InitializerValue listInitializer,
         string listName)
     {
-        if (!values.TryGetValue(key, out var listInitializer))
-        {
-            return;
-        }
-
         var listElement = new XElement(listName);
         foreach (var initializer in listInitializer.UnnamedValues ?? [])
         {
@@ -199,5 +253,25 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
         }
 
         element.Add(listElement);
+    }
+
+    private sealed class LocalValidateJwtCompiledConfig
+    {
+        public ExpressionValue<string>? HeaderName { get; init; }
+        public ExpressionValue<string>? QueryParameterName { get; init; }
+        public ExpressionValue<string>? TokenValue { get; init; }
+        public ExpressionValue<int>? FailedValidationHttpCode { get; init; }
+        public ExpressionValue<string>? FailedValidationErrorMessage { get; init; }
+        public ExpressionValue<bool>? RequireExpirationTime { get; init; }
+        public ExpressionValue<string>? RequireScheme { get; init; }
+        public ExpressionValue<bool>? RequireSignedTokens { get; init; }
+        public ExpressionValue<int>? ClockSkew { get; init; }
+        public ExpressionValue<string>? OutputTokenVariableName { get; init; }
+        public InitializerValue? OpenIdConfigs { get; init; }
+        public InitializerValue? IssuerSigningKeys { get; init; }
+        public InitializerValue? DescriptionKeys { get; init; }
+        public InitializerValue? Audiences { get; init; }
+        public InitializerValue? Issuers { get; init; }
+        public InitializerValue? RequiredClaims { get; init; }
     }
 }

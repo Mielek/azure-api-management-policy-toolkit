@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System.Xml.Linq;
@@ -17,57 +17,61 @@ public class SendRequestCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<SendRequestConfig>(node, context, "send-request");
+        var configResult = CompiledConfigExtractor.Extract<LocalSendRequestCompiledConfig>(
+            node, context, "send-request");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("send-request");
 
-        if (!element.AddAttribute(values, nameof(SendRequestConfig.ResponseVariableName), "response-variable-name"))
+        element.Add(new XAttribute("response-variable-name", config.ResponseVariableName.ToXmlValue()));
+
+        if (config.Mode is { } mode)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "send-request",
-                nameof(SendRequestConfig.ResponseVariableName)
-            ));
-            return;
+            element.Add(new XAttribute("mode", mode.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(SendRequestConfig.Mode), "mode");
-        element.AddAttribute(values, nameof(SendRequestConfig.Timeout), "timeout");
-        element.AddAttribute(values, nameof(SendRequestConfig.IgnoreError), "ignore-error");
-
-        if (values.TryGetValue(nameof(SendRequestConfig.Url), out var url))
+        if (config.Timeout is { } timeout)
         {
-            element.Add(new XElement("set-url", url.Value!));
+            element.Add(new XAttribute("timeout", timeout.ToXmlValue()));
         }
 
-        if (values.TryGetValue(nameof(SendRequestConfig.Method), out var method))
+        if (config.IgnoreError is { } ignoreError)
         {
-            element.Add(new XElement("set-method", method.Value!));
+            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
         }
 
-        if (values.TryGetValue(nameof(SendRequestConfig.Headers), out var headers))
+        if (config.Url is { } url)
+        {
+            element.Add(new XElement("set-url", url.ToXmlValue()));
+        }
+
+        if (config.Method is { } method)
+        {
+            element.Add(new XElement("set-method", method.ToXmlValue()));
+        }
+
+        if (config.Headers is { } headers)
         {
             BaseSetHeaderCompiler.HandleHeaders(context, element, headers);
         }
 
-        if (values.TryGetValue(nameof(SendRequestConfig.Body), out var body))
+        if (config.Body is { } body)
         {
             SetBodyCompiler.HandleBody(context, element, body);
         }
 
-        if (values.TryGetValue(nameof(SendRequestConfig.Authentication), out var authentication))
+        if (config.Authentication is { } authentication)
         {
             HandleAuthentication(context, element, authentication);
         }
 
-        if (values.TryGetValue(nameof(SendRequestConfig.Proxy), out var proxy))
+        if (config.Proxy is { } proxy)
         {
             ProxyCompiler.HandleProxy(context, element, proxy);
         }
@@ -106,5 +110,19 @@ public class SendRequestCompiler : IMethodPolicyHandler
                 ));
                 break;
         }
+    }
+
+    private sealed class LocalSendRequestCompiledConfig
+    {
+        public required ExpressionValue<string> ResponseVariableName { get; init; }
+        public ExpressionValue<string>? Mode { get; init; }
+        public ExpressionValue<int>? Timeout { get; init; }
+        public ExpressionValue<bool>? IgnoreError { get; init; }
+        public ExpressionValue<string>? Url { get; init; }
+        public ExpressionValue<string>? Method { get; init; }
+        public InitializerValue? Headers { get; init; }
+        public InitializerValue? Body { get; init; }
+        public InitializerValue? Authentication { get; init; }
+        public InitializerValue? Proxy { get; init; }
     }
 }

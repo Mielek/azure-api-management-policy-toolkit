@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class LlmSemanticCacheLookupCompiler()
@@ -31,59 +33,37 @@ public abstract class BaseSemanticCacheLookupCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<SemanticCacheLookupConfig>(node, context, _policyName);
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.SemanticCacheLookupConfig>(
+            node, context, _policyName);
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement(_policyName);
 
-        if (!element.AddAttribute(values, nameof(SemanticCacheLookupConfig.ScoreThreshold), "score-threshold"))
+        element.Add(new XAttribute("score-threshold", config.ScoreThreshold.ToXmlValue()));
+        element.Add(new XAttribute("embeddings-backend-id", config.EmbeddingsBackendId.ToXmlValue()));
+        element.Add(new XAttribute("embeddings-backend-auth", config.EmbeddingsBackendAuth.ToXmlValue()));
+
+        if (config.IgnoreSystemMessages is { } ignoreSystemMessages)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                _policyName,
-                nameof(SemanticCacheLookupConfig.ScoreThreshold)
-            ));
-            return;
+            element.Add(new XAttribute("ignore-system-messages", ignoreSystemMessages.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(SemanticCacheLookupConfig.EmbeddingsBackendId),
-                "embeddings-backend-id"))
+        if (config.MaxMessageCount is { } maxMessageCount)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                _policyName,
-                nameof(SemanticCacheLookupConfig.EmbeddingsBackendId)
-            ));
-            return;
+            element.Add(new XAttribute("max-message-count", maxMessageCount.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(SemanticCacheLookupConfig.EmbeddingsBackendAuth),
-                "embeddings-backend-auth"))
+        if (config.VaryBy is not null)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                _policyName,
-                nameof(SemanticCacheLookupConfig.EmbeddingsBackendAuth)
-            ));
-            return;
-        }
-
-        element.AddAttribute(values, nameof(SemanticCacheLookupConfig.IgnoreSystemMessages), "ignore-system-messages");
-        element.AddAttribute(values, nameof(SemanticCacheLookupConfig.MaxMessageCount), "max-message-count");
-
-        if (values.TryGetValue(nameof(SemanticCacheLookupConfig.VaryBy), out var varyByInitializer))
-        {
-            foreach (var varyBy in varyByInitializer.UnnamedValues ?? [])
+            foreach (var varyBy in config.VaryBy)
             {
-                element.Add(new XElement("vary-by", varyBy.Value));
+                element.Add(new XElement("vary-by", varyBy.ToXmlValue()));
             }
         }
 

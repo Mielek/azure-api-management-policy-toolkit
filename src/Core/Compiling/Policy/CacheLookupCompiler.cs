@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class CacheLookupCompiler : IMethodPolicyHandler
@@ -17,59 +19,54 @@ public class CacheLookupCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<CacheLookupConfig>(node, context, "cache-lookup");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.CacheLookupConfig>(
+            node, context, "cache-lookup");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("cache-lookup");
 
-        if (!element.AddAttribute(values, nameof(CacheLookupConfig.VaryByDeveloper), "vary-by-developer"))
+        element.Add(new XAttribute("vary-by-developer", config.VaryByDeveloper.ToXmlValue()));
+        element.Add(new XAttribute("vary-by-developer-groups", config.VaryByDeveloperGroups.ToXmlValue()));
+
+        if (config.CachingType is { } cachingType)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-lookup",
-                nameof(CacheLookupConfig.VaryByDeveloper)
-            ));
-            return;
+            element.Add(new XAttribute("caching-type", cachingType.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(CacheLookupConfig.VaryByDeveloperGroups), "vary-by-developer-groups"))
+        if (config.DownstreamCachingType is { } downstreamCachingType)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "cache-lookup",
-                nameof(CacheLookupConfig.VaryByDeveloperGroups)
-            ));
-            return;
+            element.Add(new XAttribute("downstream-caching-type", downstreamCachingType.ToXmlValue()));
         }
 
-        element.AddAttribute(values, nameof(CacheLookupConfig.CachingType), "caching-type");
-        element.AddAttribute(values, nameof(CacheLookupConfig.DownstreamCachingType), "downstream-caching-type");
-        element.AddAttribute(values, nameof(CacheLookupConfig.MustRevalidate), "must-revalidate");
-        element.AddAttribute(values, nameof(CacheLookupConfig.AllowPrivateResponseCaching),
-            "allow-private-response-caching");
-
-        if (values.TryGetValue(nameof(CacheLookupConfig.VaryByHeaders), out var headers) &&
-            headers.UnnamedValues is not null)
+        if (config.MustRevalidate is { } mustRevalidate)
         {
-            foreach (var value in headers.UnnamedValues)
+            element.Add(new XAttribute("must-revalidate", mustRevalidate.ToXmlValue()));
+        }
+
+        if (config.AllowPrivateResponseCaching is { } allowPrivateResponseCaching)
+        {
+            element.Add(new XAttribute("allow-private-response-caching", allowPrivateResponseCaching.ToXmlValue()));
+        }
+
+        if (config.VaryByHeaders is { } varyByHeaders)
+        {
+            foreach (var header in varyByHeaders)
             {
-                element.Add(new XElement("vary-by-header", value.Value!));
+                element.Add(new XElement("vary-by-header", header.ToXmlValue()));
             }
         }
 
-        if (values.TryGetValue(nameof(CacheLookupConfig.VaryByQueryParameters), out var queryParams) &&
-            queryParams.UnnamedValues is not null)
+        if (config.VaryByQueryParameters is { } varyByQueryParameters)
         {
-            foreach (var value in queryParams.UnnamedValues)
+            foreach (var queryParam in varyByQueryParameters)
             {
-                element.Add(new XElement("vary-by-query-parameter", value.Value!));
+                element.Add(new XElement("vary-by-query-parameter", queryParam.ToXmlValue()));
             }
         }
 

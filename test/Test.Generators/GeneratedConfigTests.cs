@@ -3,16 +3,18 @@
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Test.Generators;
 
 [TestClass]
 public class GeneratedConfigTests
 {
     [TestMethod]
-    public void TestSimpleConfigCompiledConfig_ShouldExist()
+    public void TestSimpleConfig_ShouldExist()
     {
         // Arrange & Act - This will fail to compile if the generated class doesn't exist
-        var config = new TestSimpleConfigCompiledConfig
+        var config = new CompiledConfigs.TestSimpleConfig
         {
             Name = ExpressionValue<string>.FromConstant("test"),
             OptionalValue = ExpressionValue<string>.FromExpression("@(context.Request.Headers[\"X-Test\"])"),
@@ -32,10 +34,10 @@ public class GeneratedConfigTests
     }
 
     [TestMethod]
-    public void TestSimpleConfigCompiledConfig_WithNullOptional_ShouldWork()
+    public void TestSimpleConfig_WithNullOptional_ShouldWork()
     {
         // Arrange & Act
-        var config = new TestSimpleConfigCompiledConfig
+        var config = new CompiledConfigs.TestSimpleConfig
         {
             Name = ExpressionValue<string>.FromConstant("test"),
             OptionalValue = null,
@@ -48,10 +50,10 @@ public class GeneratedConfigTests
     }
 
     [TestMethod]
-    public void TestEnumConfigCompiledConfig_ShouldExist()
+    public void TestEnumConfig_ShouldExist()
     {
         // Arrange & Act
-        var config = new TestEnumConfigCompiledConfig
+        var config = new CompiledConfigs.TestEnumConfig
         {
             Action = ExpressionValue<TestActionType>.FromConstant(TestActionType.Override),
             OptionalAction = ExpressionValue<TestActionType>.FromExpression("@(GetAction())")
@@ -64,10 +66,10 @@ public class GeneratedConfigTests
     }
 
     [TestMethod]
-    public void TestEnumConfigCompiledConfig_ToXmlValue_ShouldReturnKebabCase()
+    public void TestEnumConfig_ToXmlValue_ShouldReturnKebabCase()
     {
         // Arrange
-        var config = new TestEnumConfigCompiledConfig
+        var config = new CompiledConfigs.TestEnumConfig
         {
             Action = ExpressionValue<TestActionType>.FromConstant(TestActionType.Override)
         };
@@ -80,10 +82,10 @@ public class GeneratedConfigTests
     }
 
     [TestMethod]
-    public void TestXmlNameConfigCompiledConfig_ShouldExist()
+    public void TestXmlNameConfig_ShouldExist()
     {
         // Arrange & Act
-        var config = new TestXmlNameConfigCompiledConfig
+        var config = new CompiledConfigs.TestXmlNameConfig
         {
             Value = ExpressionValue<string>.FromConstant("test")
         };
@@ -96,7 +98,7 @@ public class GeneratedConfigTests
     public void ImplicitConversion_ShouldWorkWithGeneratedConfig()
     {
         // Arrange & Act - implicit conversion from T to ExpressionValue<T>
-        var config = new TestSimpleConfigCompiledConfig
+        var config = new CompiledConfigs.TestSimpleConfig
         {
             Name = "test-name", // implicit conversion
             OptionalValue = null,

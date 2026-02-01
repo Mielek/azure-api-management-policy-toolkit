@@ -17,53 +17,37 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateParametersConfig>(node, context, "validate-parameters");
+        var configResult = CompiledConfigExtractor.Extract<LocalValidateParametersCompiledConfig>(
+            node, context, "validate-parameters");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("validate-parameters");
 
-        if (!element.AddAttribute(values, nameof(ValidateParametersConfig.SpecifiedParameterAction),
-                "specified-parameter-action"))
+        element.Add(new XAttribute("specified-parameter-action", config.SpecifiedParameterAction.ToXmlValue()));
+        element.Add(new XAttribute("unspecified-parameter-action", config.UnspecifiedParameterAction.ToXmlValue()));
+
+        if (config.ErrorsVariableName is { } errorsVar)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-parameters",
-                nameof(ValidateParametersConfig.SpecifiedParameterAction)
-            ));
-            return;
+            element.Add(new XAttribute("errors-variable-name", errorsVar.ToXmlValue()));
         }
 
-        if (!element.AddAttribute(values, nameof(ValidateParametersConfig.UnspecifiedParameterAction),
-                "unspecified-parameter-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.ArgumentList.GetLocation(),
-                "validate-parameters",
-                nameof(ValidateParametersConfig.UnspecifiedParameterAction)
-            ));
-            return;
-        }
-
-        element.AddAttribute(values, nameof(ValidateParametersConfig.ErrorsVariableName), "errors-variable-name");
-
-        if (values.TryGetValue(nameof(ValidateParametersConfig.Headers), out var headersValue))
+        if (config.Headers is { } headersValue)
         {
             AddHeadersElement(context, headersValue, element);
         }
 
-        if (values.TryGetValue(nameof(ValidateParametersConfig.Query), out var queryValue))
+        if (config.Query is { } queryValue)
         {
             AddQueryElement(context, queryValue, element);
         }
 
-        if (values.TryGetValue(nameof(ValidateParametersConfig.Path), out var pathValue))
+        if (config.Path is { } pathValue)
         {
             AddPathElement(context, pathValue, element);
         }
@@ -245,5 +229,15 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
 
             parentElement.Add(paramElement);
         }
+    }
+
+    private sealed class LocalValidateParametersCompiledConfig
+    {
+        public required ExpressionValue<string> SpecifiedParameterAction { get; init; }
+        public required ExpressionValue<string> UnspecifiedParameterAction { get; init; }
+        public ExpressionValue<string>? ErrorsVariableName { get; init; }
+        public InitializerValue? Headers { get; init; }
+        public InitializerValue? Query { get; init; }
+        public InitializerValue? Path { get; init; }
     }
 }

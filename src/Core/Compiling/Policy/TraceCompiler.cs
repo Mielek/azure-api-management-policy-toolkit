@@ -9,99 +9,82 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class TraceCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.Trace);
 
+    private sealed class LocalTraceCompiledConfig
+    {
+        public required ExpressionValue<string> Source { get; init; }
+        public required ExpressionValue<string> Message { get; init; }
+        public ExpressionValue<string>? Severity { get; init; }
+        public InitializerValue? Metadata { get; init; }
+    }
+
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<TraceConfig>(node, context, "trace");
+        var configResult = CompiledConfigExtractor.Extract<LocalTraceCompiledConfig>(
+            node, context, "trace");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
-        XElement element = new("trace");
-        if (!element.AddAttribute(values, nameof(TraceConfig.Source), "source"))
+        var config = configResult.Value;
+        var element = new XElement("trace");
+
+        element.Add(new XAttribute("source", config.Source.ToXmlValue()));
+        element.Add(new XElement("message", config.Message.ToXmlValue()));
+
+        if (config.Severity is { } severity)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "trace",
-                nameof(TraceConfig.Source)
-            ));
-            return;
+            element.Add(new XAttribute("severity", severity.ToXmlValue()));
         }
 
-        if (!values.TryGetValue(nameof(TraceConfig.Message), out InitializerValue? message) || message.Value is null)
+        if (config.Metadata is { } metadata)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "trace",
-                nameof(TraceConfig.Message)
-            ));
-            return;
-        }
-
-        element.Add(new XElement("message", message.Value));
-
-        element.AddAttribute(values, nameof(TraceConfig.Severity), "severity");
-
-        if (values.TryGetValue(nameof(TraceConfig.Metadata), out InitializerValue? metadata))
-        {
-            element.Add(HandleMetadata(context, metadata).ToArray());
+            HandleMetadata(context, metadata, element);
         }
 
         context.AddPolicy(element);
     }
 
-    private static IEnumerable<object> HandleMetadata(IDocumentCompilationContext context, InitializerValue metadata)
+    private static void HandleMetadata(IDocumentCompilationContext context, InitializerValue metadataValue,
+        XElement parentElement)
     {
-        List<object> elements = new();
-        foreach (InitializerValue data in metadata.UnnamedValues ?? [])
+        foreach (var dataValue in metadataValue.UnnamedValues ?? [])
         {
-            if (!data.TryGetValues<TraceMetadata>(out IReadOnlyDictionary<string, InitializerValue>? metadataValues))
+            if (dataValue.Node is not ExpressionSyntax dataExpression)
             {
                 context.Report(Diagnostic.Create(
                     CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    data.Node.GetLocation(),
+                    dataValue.Node.GetLocation(),
                     "trace.metadata",
                     nameof(TraceMetadata)
                 ));
                 continue;
             }
 
-            XElement xMetadata = new("metadata");
-            if (!xMetadata.AddAttribute(metadataValues, nameof(TraceMetadata.Name), "name"))
+            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.TraceMetadata>(
+                dataExpression, context, "trace.metadata");
+
+            if (!configResult.IsSuccess)
             {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    data.Node.GetLocation(),
-                    "trace.metadata",
-                    nameof(TraceMetadata.Name)
-                ));
+                configResult.ReportAll(context);
                 continue;
             }
 
-            if (!xMetadata.AddAttribute(metadataValues, nameof(TraceMetadata.Value), "value"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    data.Node.GetLocation(),
-                    "trace.metadata",
-                    nameof(TraceMetadata.Value)
-                ));
-                continue;
-            }
-
-            elements.Add(xMetadata);
+            var config = configResult.Value;
+            var metadataElement = new XElement("metadata");
+            metadataElement.Add(new XAttribute("name", config.Name.ToXmlValue()));
+            metadataElement.Add(new XAttribute("value", config.Value.ToXmlValue()));
+            parentElement.Add(metadataElement);
         }
-
-        return elements;
     }
 }

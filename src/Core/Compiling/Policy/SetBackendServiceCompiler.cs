@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class SetBackendServiceCompiler : IMethodPolicyHandler
@@ -17,18 +19,20 @@ public class SetBackendServiceCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<SetBackendServiceConfig>(node, context, "set-backend-service");
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.SetBackendServiceConfig>(
+            node, context, "set-backend-service");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("set-backend-service");
 
-        var baseUrlDefined = element.AddAttribute(values, nameof(SetBackendServiceConfig.BaseUrl), "base-url");
-        var backendIdDefined = element.AddAttribute(values, nameof(SetBackendServiceConfig.BackendId), "backend-id");
+        var baseUrlDefined = config.BaseUrl is not null;
+        var backendIdDefined = config.BackendId is not null;
         if (!(baseUrlDefined ^ backendIdDefined))
         {
             context.Report(Diagnostic.Create(
@@ -41,14 +45,50 @@ public class SetBackendServiceCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.AddAttribute(values, nameof(SetBackendServiceConfig.SfResolveCondition), "sf-resolve-condition");
-        element.AddAttribute(values, nameof(SetBackendServiceConfig.SfServiceInstanceName), "sf-service-instance-name");
-        element.AddAttribute(values, nameof(SetBackendServiceConfig.SfPartitionKey), "sf-partition-key");
-        element.AddAttribute(values, nameof(SetBackendServiceConfig.SfListenerName), "sf-listener-name");
+        if (config.BaseUrl is { } baseUrl)
+        {
+            element.Add(new XAttribute("base-url", baseUrl.ToXmlValue()));
+        }
 
-        element.AddAttribute(values, nameof(SetBackendServiceConfig.DaprAppId), "dapr-app-id");
-        element.AddAttribute(values, nameof(SetBackendServiceConfig.DaprMethod), "dapr-method");
-        element.AddAttribute(values, nameof(SetBackendServiceConfig.DaprNamespace), "dapr-namespace");
+        if (config.BackendId is { } backendId)
+        {
+            element.Add(new XAttribute("backend-id", backendId.ToXmlValue()));
+        }
+
+        if (config.SfResolveCondition is { } sfResolveCondition)
+        {
+            element.Add(new XAttribute("sf-resolve-condition", sfResolveCondition.ToXmlValue()));
+        }
+
+        if (config.SfServiceInstanceName is { } sfServiceInstanceName)
+        {
+            element.Add(new XAttribute("sf-service-instance-name", sfServiceInstanceName.ToXmlValue()));
+        }
+
+        if (config.SfPartitionKey is { } sfPartitionKey)
+        {
+            element.Add(new XAttribute("sf-partition-key", sfPartitionKey.ToXmlValue()));
+        }
+
+        if (config.SfListenerName is { } sfListenerName)
+        {
+            element.Add(new XAttribute("sf-listener-name", sfListenerName.ToXmlValue()));
+        }
+
+        if (config.DaprAppId is { } daprAppId)
+        {
+            element.Add(new XAttribute("dapr-app-id", daprAppId.ToXmlValue()));
+        }
+
+        if (config.DaprMethod is { } daprMethod)
+        {
+            element.Add(new XAttribute("dapr-method", daprMethod.ToXmlValue()));
+        }
+
+        if (config.DaprNamespace is { } daprNamespace)
+        {
+            element.Add(new XAttribute("dapr-namespace", daprNamespace.ToXmlValue()));
+        }
 
         context.AddPolicy(element);
     }

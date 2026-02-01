@@ -17,24 +17,44 @@ public class ValidateClientCertificateCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<ValidateClientCertificateConfig>(node, context, "validate-client-certificate");
+        var configResult = CompiledConfigExtractor.Extract<LocalValidateClientCertificateCompiledConfig>(
+            node, context, "validate-client-certificate");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> values = configResult.Value;
 
+        var config = configResult.Value;
         XElement element = new("validate-client-certificate");
 
-        element.AddAttribute(values, nameof(ValidateClientCertificateConfig.ValidateRevocation), "validate-revocation");
-        element.AddAttribute(values, nameof(ValidateClientCertificateConfig.ValidateTrust), "validate-trust");
-        element.AddAttribute(values, nameof(ValidateClientCertificateConfig.ValidateNotBefore), "validate-not-before");
-        element.AddAttribute(values, nameof(ValidateClientCertificateConfig.ValidateNotAfter), "validate-not-after");
-        element.AddAttribute(values, nameof(ValidateClientCertificateConfig.IgnoreError), "ignore-error");
+        if (config.ValidateRevocation is { } validateRevocation)
+        {
+            element.Add(new XAttribute("validate-revocation", validateRevocation.ToXmlValue()));
+        }
 
-        if (values.TryGetValue(nameof(ValidateClientCertificateConfig.Identities),
-                out InitializerValue? identitiesValue))
+        if (config.ValidateTrust is { } validateTrust)
+        {
+            element.Add(new XAttribute("validate-trust", validateTrust.ToXmlValue()));
+        }
+
+        if (config.ValidateNotBefore is { } validateNotBefore)
+        {
+            element.Add(new XAttribute("validate-not-before", validateNotBefore.ToXmlValue()));
+        }
+
+        if (config.ValidateNotAfter is { } validateNotAfter)
+        {
+            element.Add(new XAttribute("validate-not-after", validateNotAfter.ToXmlValue()));
+        }
+
+        if (config.IgnoreError is { } ignoreError)
+        {
+            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
+        }
+
+        if (config.Identities is { } identitiesValue)
         {
             XElement identities = HandleIdentities(context, identitiesValue);
             element.Add(identities);
@@ -73,5 +93,15 @@ public class ValidateClientCertificateCompiler : IMethodPolicyHandler
         }
 
         return identities;
+    }
+
+    private sealed class LocalValidateClientCertificateCompiledConfig
+    {
+        public ExpressionValue<bool>? ValidateRevocation { get; init; }
+        public ExpressionValue<bool>? ValidateTrust { get; init; }
+        public ExpressionValue<bool>? ValidateNotBefore { get; init; }
+        public ExpressionValue<bool>? ValidateNotAfter { get; init; }
+        public ExpressionValue<bool>? IgnoreError { get; init; }
+        public InitializerValue? Identities { get; init; }
     }
 }

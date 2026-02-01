@@ -10,50 +10,49 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class XslTransformCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.XslTransform);
 
+    private sealed class LocalXslTransformCompiledConfig
+    {
+        public required ExpressionValue<string> StyleSheet { get; init; }
+        public InitializerValue? Parameters { get; init; }
+    }
+
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = ConfigurationExtractor.Extract<XslTransformConfig>(node, context, "xsl-transform");
+        var configResult = CompiledConfigExtractor.Extract<LocalXslTransformCompiledConfig>(
+            node, context, "xsl-transform");
+
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        var values = configResult.Value;
 
+        var config = configResult.Value;
         var element = new XElement("xsl-transform");
 
-        if (!values.TryGetValue(nameof(XslTransformConfig.StyleSheet), out var styleSheetValue))
+        if (config.Parameters is { } parameters)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "xsl-transform",
-                nameof(XslTransformConfig.StyleSheet)
-            ));
-            return;
-        }
-
-        if (values.TryGetValue(nameof(XslTransformConfig.Parameters), out var parametersValue))
-        {
-            HandleParameters(context, parametersValue, element);
+            HandleParameters(context, parameters, element);
         }
 
         try
         {
-            var xml = XElement.Parse(styleSheetValue.Value!);
+            var xml = XElement.Parse(config.StyleSheet.ToXmlValue());
             element.Add(xml);
         }
         catch (XmlException ex)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.RequiredParameterHasXmlErrors,
-                styleSheetValue.Node.GetLocation(),
+                node.GetLocation(),
                 "xsl-transform",
                 nameof(XslTransformConfig.StyleSheet),
                 ex.ToString()
@@ -64,11 +63,11 @@ public class XslTransformCompiler : IMethodPolicyHandler
     }
 
     private static void HandleParameters(IDocumentCompilationContext context, InitializerValue parametersValue,
-        XElement element)
+        XElement parentElement)
     {
         foreach (var paramValue in parametersValue.UnnamedValues ?? [])
         {
-            if (!paramValue.TryGetValues<XslTransformParameter>(out var paramValues))
+            if (paramValue.Node is not ExpressionSyntax paramExpression)
             {
                 context.Report(Diagnostic.Create(
                     CompilationErrors.PolicyArgumentIsNotOfRequiredType,
@@ -79,32 +78,20 @@ public class XslTransformCompiler : IMethodPolicyHandler
                 continue;
             }
 
-            XElement paramElement = new("parameter");
+            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.XslTransformParameter>(
+                paramExpression, context, "xsl-transform.parameter");
 
-            if (!paramElement.AddAttribute(paramValues, nameof(XslTransformParameter.Name), "name"))
+            if (!configResult.IsSuccess)
             {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    paramValue.Node.GetLocation(),
-                    "xsl-transform.parameter",
-                    nameof(XslTransformParameter.Name)
-                ));
+                configResult.ReportAll(context);
                 continue;
             }
 
-            if (!paramValues.TryGetValue(nameof(XslTransformParameter.Value), out var value))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    paramValue.Node.GetLocation(),
-                    "xsl-transform.parameter",
-                    nameof(XslTransformConfig.StyleSheet)
-                ));
-                continue;
-            }
-
-            paramElement.Value = value.Value!;
-            element.Add(paramElement);
+            var config = configResult.Value;
+            var paramElement = new XElement("parameter");
+            paramElement.Add(new XAttribute("name", config.Name.ToXmlValue()));
+            paramElement.Value = config.Value.ToXmlValue();
+            parentElement.Add(paramElement);
         }
     }
 }
