@@ -42,34 +42,12 @@ public class AuthenticationBasicCompiler : IMethodPolicyHandler
     }
 
     public static void HandleBasicAuthentication(
-        IDocumentCompilationContext context,
         XElement element,
-        IReadOnlyDictionary<string, InitializerValue> values,
-        SyntaxNode node)
+        Configs.BasicAuthenticationConfig config)
     {
         XElement basicElement = new("authentication-basic");
-        if (!basicElement.AddAttribute(values, nameof(BasicAuthenticationConfig.Username), "username"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "authentication-basic",
-                nameof(BasicAuthenticationConfig.Username)
-            ));
-            return;
-        }
-
-        if (!basicElement.AddAttribute(values, nameof(BasicAuthenticationConfig.Password), "password"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "authentication-basic",
-                nameof(BasicAuthenticationConfig.Password)
-            ));
-            return;
-        }
-
+        basicElement.Add(new XAttribute("username", config.Username.ToXmlValue()));
+        basicElement.Add(new XAttribute("password", config.Password.ToXmlValue()));
         element.Add(basicElement);
     }
 }

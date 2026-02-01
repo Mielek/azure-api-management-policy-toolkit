@@ -9,22 +9,12 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class ForwardRequestCompiler : IMethodPolicyHandler
 {
-    readonly static IReadOnlyDictionary<string, string> FieldToAttribute = new Dictionary<string, string>
-    {
-        { nameof(ForwardRequestConfig.Timeout), "timeout" },
-        { nameof(ForwardRequestConfig.TimeoutMs), "timeout-ms" },
-        { nameof(ForwardRequestConfig.ContinueTimeout), "continue-timeout" },
-        { nameof(ForwardRequestConfig.HttpVersion), "http-version" },
-        { nameof(ForwardRequestConfig.FollowRedirects), "follow-redirects" },
-        { nameof(ForwardRequestConfig.BufferRequestBody), "buffer-request-body" },
-        { nameof(ForwardRequestConfig.BufferResponse), "buffer-response" },
-        { nameof(ForwardRequestConfig.FailOnErrorStatusCode), "fail-on-error-status-code" }
-    };
-
     public string MethodName => nameof(IBackendContext.ForwardRequest);
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
@@ -42,53 +32,37 @@ public class ForwardRequestCompiler : IMethodPolicyHandler
         var element = new XElement("forward-request");
         if (node.ArgumentList.Arguments.Count == 1)
         {
-            if (node.ArgumentList.Arguments[0].Expression is not ObjectCreationExpressionSyntax config)
+            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.ForwardRequestConfig>(
+                node.ArgumentList.Arguments[0].Expression, context, "forward-request");
+
+            if (!configResult.IsSuccess)
             {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotAnObjectCreation,
-                    node.ArgumentList.Arguments[0].Expression.GetLocation(),
-                    "forward-request"));
+                configResult.ReportAll(context);
                 return;
             }
 
-            var initializerResult = ExpressionProcessor.ProcessToInitializerValue(config, context);
-            if (!initializerResult.IsSuccess)
-            {
-                initializerResult.ReportAll(context);
-                return;
-            }
-            var initializer = initializerResult.Value;
-            if (initializer.Type != nameof(ForwardRequestConfig))
+            var config = configResult.Value;
+
+            // Validate mutual exclusion of Timeout and TimeoutMs
+            if (config.Timeout is not null && config.TimeoutMs is not null)
             {
                 context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    config.GetLocation(),
+                    CompilationErrors.OnlyOneOfTwoShouldBeDefined,
+                    node.ArgumentList.Arguments[0].GetLocation(),
                     "forward-request",
-                    nameof(ForwardRequestConfig)
+                    nameof(ForwardRequestConfig.Timeout),
+                    nameof(ForwardRequestConfig.TimeoutMs)
                 ));
-                return;
             }
 
-            if (initializer.NamedValues is not null)
-            {
-                if (initializer.NamedValues.ContainsKey(nameof(ForwardRequestConfig.Timeout))
-                    && initializer.NamedValues.ContainsKey(nameof(ForwardRequestConfig.TimeoutMs)))
-                {
-                    context.Report(Diagnostic.Create(
-                        CompilationErrors.OnlyOneOfTwoShouldBeDefined,
-                        config.GetLocation(),
-                        "forward-request",
-                        nameof(ForwardRequestConfig.Timeout),
-                        nameof(ForwardRequestConfig.TimeoutMs)
-                    ));
-                }
-
-                foreach ((string key, InitializerValue value) in initializer.NamedValues)
-                {
-                    var name = FieldToAttribute.GetValueOrDefault(key, key);
-                    element.Add(new XAttribute(name, value.Value!));
-                }
-            }
+            element.TryAddAttribute("timeout", config.Timeout);
+            element.TryAddAttribute("timeout-ms", config.TimeoutMs);
+            element.TryAddAttribute("continue-timeout", config.ContinueTimeout);
+            element.TryAddAttribute("http-version", config.HttpVersion);
+            element.TryAddAttribute("follow-redirects", config.FollowRedirects);
+            element.TryAddAttribute("buffer-request-body", config.BufferRequestBody);
+            element.TryAddAttribute("buffer-response", config.BufferResponse);
+            element.TryAddAttribute("fail-on-error-status-code", config.FailOnErrorStatusCode);
         }
 
         context.AddPolicy(element);

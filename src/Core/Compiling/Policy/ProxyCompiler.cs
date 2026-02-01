@@ -29,8 +29,13 @@ public class ProxyCompiler : IMethodPolicyHandler
         }
 
         var config = configResult.Value;
-        var element = new XElement("proxy");
+        var element = HandleProxy(config);
+        context.AddPolicy(element);
+    }
 
+    public static XElement HandleProxy(CompiledConfigs.ProxyConfig config)
+    {
+        XElement element = new("proxy");
         element.Add(new XAttribute("url", config.Url.ToXmlValue()));
 
         if (config.Username is { } username)
@@ -42,47 +47,6 @@ public class ProxyCompiler : IMethodPolicyHandler
         {
             element.Add(new XAttribute("password", password.ToXmlValue()));
         }
-
-        context.AddPolicy(element);
-    }
-
-    public static void HandleProxy(IDocumentCompilationContext context, XElement element, InitializerValue value)
-    {
-        if (!value.TryGetValues<ProxyConfig>(out IReadOnlyDictionary<string, InitializerValue>? values))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                value.Node.GetLocation(),
-                $"{element.Name}.proxy",
-                nameof(ProxyConfig)
-            ));
-            return;
-        }
-
-        XElement? proxyElement = HandleProxy(context, value.Node, values);
-        if (proxyElement is not null)
-        {
-            element.Add(proxyElement);
-        }
-    }
-
-    private static XElement? HandleProxy(IDocumentCompilationContext context, SyntaxNode node,
-        IReadOnlyDictionary<string, InitializerValue> values)
-    {
-        XElement element = new("proxy");
-        if (!element.AddAttribute(values, nameof(ProxyConfig.Url), "url"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "proxy",
-                nameof(ProxyConfig.Url)
-            ));
-            return null;
-        }
-
-        element.AddAttribute(values, nameof(ProxyConfig.Username), "username");
-        element.AddAttribute(values, nameof(ProxyConfig.Password), "password");
 
         return element;
     }

@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class ValidateJwtCompiler : IMethodPolicyHandler
@@ -17,7 +19,7 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalValidateJwtCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ValidateJwtConfig>(
             node, context, "validate-jwt");
 
         if (!configResult.IsSuccess)
@@ -64,189 +66,77 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
             return;
         }
 
-        if (config.FailedValidationHttpCode is { } failedHttpCode)
-        {
-            element.Add(new XAttribute("failed-validation-httpcode", failedHttpCode.ToXmlValue()));
-        }
-
-        if (config.FailedValidationErrorMessage is { } failedMsg)
-        {
-            element.Add(new XAttribute("failed-validation-error-message", failedMsg.ToXmlValue()));
-        }
-
-        if (config.RequireExpirationTime is { } requireExp)
-        {
-            element.Add(new XAttribute("require-expiration-time", requireExp.ToXmlValue()));
-        }
-
-        if (config.RequireScheme is { } requireScheme)
-        {
-            element.Add(new XAttribute("require-scheme", requireScheme.ToXmlValue()));
-        }
-
-        if (config.RequireSignedTokens is { } requireSigned)
-        {
-            element.Add(new XAttribute("require-signed-tokens", requireSigned.ToXmlValue()));
-        }
-
-        if (config.ClockSkew is { } clockSkew)
-        {
-            element.Add(new XAttribute("clock-skew", clockSkew.ToXmlValue()));
-        }
-
-        if (config.OutputTokenVariableName is { } outputVar)
-        {
-            element.Add(new XAttribute("output-token-variable-name", outputVar.ToXmlValue()));
-        }
+        element.TryAddAttribute("failed-validation-httpcode", config.FailedValidationHttpCode);
+        element.TryAddAttribute("failed-validation-error-message", config.FailedValidationErrorMessage);
+        element.TryAddAttribute("require-expiration-time", config.RequireExpirationTime);
+        element.TryAddAttribute("require-scheme", config.RequireScheme);
+        element.TryAddAttribute("require-signed-tokens", config.RequireSignedTokens);
+        element.TryAddAttribute("clock-skew", config.ClockSkew);
+        element.TryAddAttribute("output-token-variable-name", config.OutputTokenVariableName);
 
         if (config.OpenIdConfigs is { } openIdConfigs)
         {
-            var openIdElements = HandleOpenIdConfigs(context, openIdConfigs);
-            element.Add(openIdElements);
+            HandleOpenIdConfigs(element, openIdConfigs);
         }
 
         if (config.IssuerSigningKeys is { } issuerSigningKeys)
         {
-            HandleKeys(context, element, issuerSigningKeys, "issuer-signing-keys");
+            HandleKeys(element, issuerSigningKeys, "issuer-signing-keys");
         }
 
         if (config.DescriptionKeys is { } descriptionKeys)
         {
-            HandleKeys(context, element, descriptionKeys, "decryption-keys");
+            HandleKeys(element, descriptionKeys, "decryption-keys");
         }
 
         if (config.Audiences is { } audiences)
         {
-            GenericCompiler.HandleListFromInitializer(element, audiences, "audiences", "audience");
+            HandleExpressionList(element, audiences, "audiences", "audience");
         }
 
         if (config.Issuers is { } issuers)
         {
-            GenericCompiler.HandleListFromInitializer(element, issuers, "issuers", "issuer");
+            HandleExpressionList(element, issuers, "issuers", "issuer");
         }
 
         if (config.RequiredClaims is { } requiredClaims)
         {
-            XElement claimsElement = ClaimsConfigCompiler.HandleRequiredClaims(context, requiredClaims);
-            element.Add(claimsElement);
+            element.Add(ClaimsConfigCompiler.HandleRequiredClaims(requiredClaims));
         }
 
         context.AddPolicy(element);
     }
 
-    private static object[] HandleOpenIdConfigs(IDocumentCompilationContext context, InitializerValue openIdConfigs)
+    private static void HandleOpenIdConfigs(XElement element, IReadOnlyList<CompiledConfigs.OpenIdConfig> openIdConfigs)
     {
-        var openIdElements = new List<object>();
-        foreach (var openIdConfig in openIdConfigs.UnnamedValues ?? [])
+        foreach (var openIdConfig in openIdConfigs)
         {
-            if (!openIdConfig.TryGetValues<OpenIdConfig>(out var openIdConfigValues))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    openIdConfig.Node.GetLocation(),
-                    "openid-config",
-                    nameof(OpenIdConfig)
-                ));
-                continue;
-            }
-
             var openIdElement = new XElement("openid-config");
-            if (!openIdElement.AddAttribute(openIdConfigValues, nameof(OpenIdConfig.Url), "url"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    openIdConfig.Node.GetLocation(),
-                    "openid-config",
-                    nameof(OpenIdConfig.Url)
-                ));
-                continue;
-            }
-
-            openIdElements.Add(openIdElement);
+            openIdElement.Add(new XAttribute("url", openIdConfig.Url));
+            element.Add(openIdElement);
         }
-
-        return openIdElements.ToArray();
     }
 
-    private static void HandleKeys(
-        IDocumentCompilationContext context,
-        XElement element,
-        InitializerValue listInitializer,
-        string listName)
+    private static void HandleKeys(XElement element, IReadOnlyList<CompiledConfigs.KeyConfig> keys, string listName)
     {
         var listElement = new XElement(listName);
-        foreach (var initializer in listInitializer.UnnamedValues ?? [])
+        foreach (var key in keys)
         {
-            var keyValues = initializer.NamedValues;
-            if (keyValues is null)
-            {
-                continue;
-            }
-
             var keyElement = new XElement("key");
-            keyElement.AddAttribute(keyValues, nameof(KeyConfig.Id), "id");
-            switch (initializer.Type)
+            keyElement.TryAddAttribute("id", key.Id);
+
+            switch (key)
             {
-                case nameof(Base64KeyConfig):
-                    if (!keyValues.TryGetValue(nameof(Base64KeyConfig.Value), out var value))
-                    {
-                        context.Report(Diagnostic.Create(
-                            CompilationErrors.RequiredParameterNotDefined,
-                            initializer.Node.GetLocation(),
-                            "key",
-                            nameof(Base64KeyConfig.Value)
-                        ));
-                        continue;
-                    }
-
-                    keyElement.Value = value.Value!;
+                case CompiledConfigs.Base64KeyConfig base64Key:
+                    keyElement.Value = base64Key.Value;
                     break;
-                case nameof(CertificateKeyConfig):
-                    if (!keyElement.AddAttribute(keyValues, nameof(CertificateKeyConfig.CertificateId),
-                            "certificate-id"))
-                    {
-                        context.Report(Diagnostic.Create(
-                            CompilationErrors.RequiredParameterNotDefined,
-                            initializer.Node.GetLocation(),
-                            "key",
-                            nameof(CertificateKeyConfig.CertificateId)
-                        ));
-                        continue;
-                    }
-
+                case CompiledConfigs.CertificateKeyConfig certKey:
+                    keyElement.Add(new XAttribute("certificate-id", certKey.CertificateId));
                     break;
-                case nameof(AsymmetricKeyConfig):
-                    if (!keyElement.AddAttribute(keyValues, nameof(AsymmetricKeyConfig.Modulus), "n"))
-                    {
-                        context.Report(Diagnostic.Create(
-                            CompilationErrors.RequiredParameterNotDefined,
-                            initializer.Node.GetLocation(),
-                            "key",
-                            nameof(AsymmetricKeyConfig.Modulus)
-                        ));
-                        continue;
-                    }
-
-                    if (!keyElement.AddAttribute(keyValues, nameof(AsymmetricKeyConfig.Exponent), "e"))
-                    {
-                        context.Report(Diagnostic.Create(
-                            CompilationErrors.RequiredParameterNotDefined,
-                            initializer.Node.GetLocation(),
-                            "key",
-                            nameof(AsymmetricKeyConfig.Exponent)
-                        ));
-                        continue;
-                    }
-
+                case CompiledConfigs.AsymmetricKeyConfig asymKey:
+                    keyElement.Add(new XAttribute("n", asymKey.Modulus));
+                    keyElement.Add(new XAttribute("e", asymKey.Exponent));
                     break;
-                default:
-                    context.Report(Diagnostic.Create(
-                        CompilationErrors.NotSupportedType,
-                        initializer.Node.GetLocation(),
-                        "key",
-                        initializer.Type
-                    ));
-                    continue;
             }
 
             listElement.Add(keyElement);
@@ -255,23 +145,18 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
         element.Add(listElement);
     }
 
-    private sealed class LocalValidateJwtCompiledConfig
+    private static void HandleExpressionList(
+        XElement element,
+        IReadOnlyList<ExpressionValue<string>> values,
+        string listName,
+        string elementName)
     {
-        public ExpressionValue<string>? HeaderName { get; init; }
-        public ExpressionValue<string>? QueryParameterName { get; init; }
-        public ExpressionValue<string>? TokenValue { get; init; }
-        public ExpressionValue<int>? FailedValidationHttpCode { get; init; }
-        public ExpressionValue<string>? FailedValidationErrorMessage { get; init; }
-        public ExpressionValue<bool>? RequireExpirationTime { get; init; }
-        public ExpressionValue<string>? RequireScheme { get; init; }
-        public ExpressionValue<bool>? RequireSignedTokens { get; init; }
-        public ExpressionValue<int>? ClockSkew { get; init; }
-        public ExpressionValue<string>? OutputTokenVariableName { get; init; }
-        public InitializerValue? OpenIdConfigs { get; init; }
-        public InitializerValue? IssuerSigningKeys { get; init; }
-        public InitializerValue? DescriptionKeys { get; init; }
-        public InitializerValue? Audiences { get; init; }
-        public InitializerValue? Issuers { get; init; }
-        public InitializerValue? RequiredClaims { get; init; }
+        var listElement = new XElement(listName);
+        foreach (var value in values)
+        {
+            listElement.Add(new XElement(elementName, value.ToXmlValue()));
+        }
+
+        element.Add(listElement);
     }
 }

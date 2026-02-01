@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class MockResponseCompiler : IMethodPolicyHandler
@@ -30,39 +32,20 @@ public class MockResponseCompiler : IMethodPolicyHandler
         var element = new XElement("mock-response");
         if (arguments.Count == 1)
         {
-            var configResult = ExpressionProcessor.ProcessToInitializerValue(arguments[0].Expression, context);
+            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.MockResponseConfig>(
+                arguments[0].Expression, context, "mock-response");
             if (!configResult.IsSuccess)
             {
                 configResult.ReportAll(context);
                 return;
             }
-            HandleConfig(context, element, configResult.Value);
+
+            var config = configResult.Value;
+            element.TryAddAttribute("status-code", config.StatusCode);
+            element.TryAddAttribute("content-type", config.ContentType);
+            element.TryAddAttribute("index", config.Index);
         }
 
         context.AddPolicy(element);
-    }
-
-    private void HandleConfig(IDocumentCompilationContext context, XElement element, InitializerValue value)
-    {
-        if (value.Type != nameof(MockResponseConfig))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                value.Node.GetLocation(),
-                "mock-response",
-                nameof(AddressRange)
-            ));
-            return;
-        }
-
-        var values = value.NamedValues;
-        if (values is null)
-        {
-            return;
-        }
-
-        element.AddAttribute(values, nameof(MockResponseConfig.StatusCode), "status-code");
-        element.AddAttribute(values, nameof(MockResponseConfig.ContentType), "content-type");
-        element.AddAttribute(values, nameof(MockResponseConfig.Index), "index");
     }
 }

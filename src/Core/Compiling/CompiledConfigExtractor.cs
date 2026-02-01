@@ -256,21 +256,16 @@ public static class CompiledConfigExtractor
         PropertyMetadata propMeta,
         string policyName)
     {
-        // Handle InitializerValue directly (for legacy compatibility with manual processing)
-        if (propMeta.InnerType == typeof(InitializerValue))
-        {
-            var result = ExpressionProcessor.ProcessToInitializerValue(expression, context);
-            if (result.IsFailure)
-            {
-                return Result<object?>.Failure(result.Diagnostics.ToList());
-            }
-            return Result<object?>.Success(result.Value);
-        }
-        
         // Handle collections: IReadOnlyList<T>
         if (propMeta.IsCollection && propMeta.CollectionElementType != null)
         {
             return ExtractCollectionValue(expression, context, propMeta);
+        }
+
+        // Handle union types (abstract classes with nested case classes)
+        if (IsUnionType(propMeta.InnerType))
+        {
+            return ExtractUnionValue(expression, context, propMeta, policyName);
         }
         
         // Handle nested compiled configs (complex types)
@@ -468,12 +463,28 @@ public static class CompiledConfigExtractor
         var list = Activator.CreateInstance(listType)!;
         var addMethod = listType.GetMethod("Add")!;
         
-        var extractMethod = typeof(CompiledConfigExtractor)
-            .GetMethod(nameof(ExtractFromExpression), BindingFlags.Public | BindingFlags.Static)!
-            .MakeGenericMethod(compiledConfigType);
-        
         foreach (var itemExpression in expressions)
         {
+            // For abstract base classes, we need to determine the actual type from the source
+            var actualConfigType = compiledConfigType;
+            if (compiledConfigType.IsAbstract && itemExpression is ObjectCreationExpressionSyntax objectCreation)
+            {
+                actualConfigType = GetConcreteTypeFromExpression(objectCreation, compiledConfigType);
+                if (actualConfigType == null)
+                {
+                    diagnostics.Add(Diagnostic.Create(
+                        CompilationErrors.NotSupportedType,
+                        itemExpression.GetLocation(),
+                        propMeta.SourcePropertyName,
+                        objectCreation.Type.ToString()));
+                    continue;
+                }
+            }
+            
+            var extractMethod = typeof(CompiledConfigExtractor)
+                .GetMethod(nameof(ExtractFromExpression), BindingFlags.Public | BindingFlags.Static)!
+                .MakeGenericMethod(actualConfigType);
+            
             var result = extractMethod.Invoke(null, [itemExpression, context, propMeta.SourcePropertyName]);
             var resultType = result!.GetType();
             var isSuccess = (bool)resultType.GetProperty("IsSuccess")!.GetValue(result)!;
@@ -495,6 +506,46 @@ public static class CompiledConfigExtractor
         }
         
         return Result<object?>.Success(list);
+    }
+
+    /// <summary>
+    /// Gets the concrete derived type from an ObjectCreationExpression when the target type is abstract.
+    /// </summary>
+    private static Type? GetConcreteTypeFromExpression(ObjectCreationExpressionSyntax objectCreation, Type abstractBaseType)
+    {
+        var typeName = objectCreation.Type.ToString();
+        
+        // Remove namespace prefix if present
+        var lastDot = typeName.LastIndexOf('.');
+        var simpleTypeName = lastDot >= 0 ? typeName.Substring(lastDot + 1) : typeName;
+        
+        // Remove "Config" suffix if present for matching
+        var baseName = simpleTypeName;
+        if (baseName.EndsWith("Config", StringComparison.Ordinal))
+        {
+            baseName = baseName.Substring(0, baseName.Length - 6);
+        }
+        
+        // Find derived types in the same namespace
+        var ns = abstractBaseType.Namespace ?? string.Empty;
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            // First try exact match with "Config" suffix
+            var concreteType = assembly.GetType($"{ns}.{simpleTypeName}");
+            if (concreteType != null && !concreteType.IsAbstract && abstractBaseType.IsAssignableFrom(concreteType))
+            {
+                return concreteType;
+            }
+            
+            // Try adding "Config" suffix
+            concreteType = assembly.GetType($"{ns}.{baseName}Config");
+            if (concreteType != null && !concreteType.IsAbstract && abstractBaseType.IsAssignableFrom(concreteType))
+            {
+                return concreteType;
+            }
+        }
+        
+        return null;
     }
 
     private static Type? GetCompiledConfigType(Type authoringType)
@@ -523,6 +574,12 @@ public static class CompiledConfigExtractor
         {
             return false;
         }
+
+        // Skip union types - they're handled separately
+        if (IsUnionType(type))
+        {
+            return false;
+        }
         
         // A nested compiled config is:
         // 1. A class in the Compiling.Configs namespace (generated compiled config)
@@ -534,6 +591,126 @@ public static class CompiledConfigExtractor
         }
         
         return false;
+    }
+
+    /// <summary>
+    /// Checks if a type is a union type (abstract class with nested case classes ending in "Union").
+    /// </summary>
+    private static bool IsUnionType(Type type)
+    {
+        if (!type.IsAbstract || !type.IsClass)
+        {
+            return false;
+        }
+
+        var ns = type.Namespace ?? string.Empty;
+        if (!ns.Contains("Compiling.Configs"))
+        {
+            return false;
+        }
+
+        // Union types follow the naming convention "*Union"
+        return type.Name.EndsWith("Union", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Extracts a union type value by identifying the concrete type and wrapping it in the appropriate case class.
+    /// </summary>
+    private static Result<object?> ExtractUnionValue(
+        ExpressionSyntax expression,
+        ICompilationContext context,
+        PropertyMetadata propMeta,
+        string policyName)
+    {
+        if (expression is not ObjectCreationExpressionSyntax objectCreation)
+        {
+            return Result<object?>.Failure(Diagnostic.Create(
+                CompilationErrors.PolicyArgumentIsNotAnObjectCreation,
+                expression.GetLocation(),
+                policyName,
+                propMeta.SourcePropertyName));
+        }
+
+        // Get the type name from the source code
+        var typeName = objectCreation.Type.ToString();
+        
+        // Remove namespace prefix if present to get just the class name
+        var lastDot = typeName.LastIndexOf('.');
+        var simpleTypeName = lastDot >= 0 ? typeName.Substring(lastDot + 1) : typeName;
+
+        // Find the corresponding case class in the union type
+        var unionType = propMeta.InnerType;
+        var caseClass = FindUnionCaseClass(unionType, simpleTypeName);
+        
+        if (caseClass is null)
+        {
+            return Result<object?>.Failure(Diagnostic.Create(
+                CompilationErrors.NotSupportedType,
+                expression.GetLocation(),
+                policyName,
+                simpleTypeName));
+        }
+
+        // Get the compiled config type for this case (the type of the Config property)
+        var configProperty = caseClass.GetProperty("Config");
+        if (configProperty is null)
+        {
+            return Result<object?>.Failure(Diagnostic.Create(
+                CompilationErrors.NotSupportedType,
+                expression.GetLocation(),
+                policyName,
+                simpleTypeName));
+        }
+
+        var compiledConfigType = configProperty.PropertyType;
+
+        // Extract the concrete config
+        var extractMethod = typeof(CompiledConfigExtractor)
+            .GetMethod(nameof(ExtractFromExpression), BindingFlags.Public | BindingFlags.Static)!
+            .MakeGenericMethod(compiledConfigType);
+
+        var result = extractMethod.Invoke(null, [expression, context, $"{policyName}.{propMeta.SourcePropertyName}"]);
+        var resultType = result!.GetType();
+        var isSuccess = (bool)resultType.GetProperty("IsSuccess")!.GetValue(result)!;
+
+        if (!isSuccess)
+        {
+            var diagnostics = (IEnumerable<Diagnostic>)resultType.GetProperty("Diagnostics")!.GetValue(result)!;
+            return Result<object?>.Failure(diagnostics.ToList());
+        }
+
+        var configValue = resultType.GetProperty("Value")!.GetValue(result);
+
+        // Create the case class instance wrapping the config
+        var caseInstance = Activator.CreateInstance(caseClass, configValue);
+        return Result<object?>.Success(caseInstance);
+    }
+
+    /// <summary>
+    /// Finds the case class within a union type that matches the given source type name.
+    /// </summary>
+    private static Type? FindUnionCaseClass(Type unionType, string sourceTypeName)
+    {
+        // The source type name is like "BasicAuthenticationConfig"
+        // The case class name is like "BasicAuthentication"
+        // So we need to remove the "Config" suffix
+        var caseName = sourceTypeName;
+        if (caseName.EndsWith("Config", StringComparison.Ordinal))
+        {
+            caseName = caseName.Substring(0, caseName.Length - 6);
+        }
+
+        // Look for nested class with this name
+        var nestedTypes = unionType.GetNestedTypes(BindingFlags.Public);
+        foreach (var nestedType in nestedTypes)
+        {
+            if (nestedType.Name == caseName && nestedType.IsClass && !nestedType.IsAbstract)
+            {
+                return nestedType;
+            }
+        }
+
+        return null;
     }
 
     private static Result<object?> ExtractNestedConfig(

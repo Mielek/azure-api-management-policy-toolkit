@@ -4,10 +4,10 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
@@ -17,7 +17,7 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalValidateAzureAdTokenCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ValidateAzureAdTokenConfig>(
             node, context, "validate-azure-ad-token");
 
         if (!configResult.IsSuccess)
@@ -31,112 +31,51 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
 
         element.Add(new XAttribute("tenant-id", config.TenantId.ToXmlValue()));
 
-        if (config.HeaderName is { } headerName)
-        {
-            element.Add(new XAttribute("header-name", headerName.ToXmlValue()));
-        }
-
-        if (config.QueryParameterName is { } queryParam)
-        {
-            element.Add(new XAttribute("query-parameter-name", queryParam.ToXmlValue()));
-        }
-
-        if (config.TokenValue is { } tokenValue)
-        {
-            element.Add(new XAttribute("token-value", tokenValue.ToXmlValue()));
-        }
-
-        if (config.FailedValidationHttpCode is { } failedHttpCode)
-        {
-            element.Add(new XAttribute("failed-validation-httpcode", failedHttpCode.ToXmlValue()));
-        }
-
-        if (config.FailedValidationErrorMessage is { } failedMsg)
-        {
-            element.Add(new XAttribute("failed-validation-error-message", failedMsg.ToXmlValue()));
-        }
-
-        if (config.OutputTokenVariableName is { } outputVar)
-        {
-            element.Add(new XAttribute("output-token-variable-name", outputVar.ToXmlValue()));
-        }
+        element.TryAddAttribute("header-name", config.HeaderName);
+        element.TryAddAttribute("query-parameter-name", config.QueryParameterName);
+        element.TryAddAttribute("token-value", config.TokenValue);
+        element.TryAddAttribute("failed-validation-httpcode", config.FailedValidationHttpCode);
+        element.TryAddAttribute("failed-validation-error-message", config.FailedValidationErrorMessage);
+        element.TryAddAttribute("output-token-variable-name", config.OutputTokenVariableName);
 
         if (config.BackendApplicationIds is { } backendIds)
         {
-            GenericCompiler.HandleListFromInitializer(element, backendIds, "backend-application-ids", "application-id");
+            GenericCompiler.HandleList(element, backendIds, "backend-application-ids", "application-id");
         }
 
         if (config.ClientApplicationIds is { } clientIds)
         {
-            GenericCompiler.HandleListFromInitializer(element, clientIds, "client-application-ids", "application-id");
+            GenericCompiler.HandleList(element, clientIds, "client-application-ids", "application-id");
         }
 
         if (config.Audiences is { } audiences)
         {
-            GenericCompiler.HandleListFromInitializer(element, audiences, "audiences", "audience");
+            GenericCompiler.HandleList(element, audiences, "audiences", "audience");
         }
 
         if (config.RequiredClaims is { } requiredClaims)
         {
-            element.Add(ClaimsConfigCompiler.HandleRequiredClaims(context, requiredClaims));
+            element.Add(ClaimsConfigCompiler.HandleRequiredClaims(requiredClaims));
         }
 
         if (config.DecryptionKeys is { } decryptionKeys)
         {
-            element.Add(HandleDecryptionKeys(context, decryptionKeys));
+            element.Add(HandleDecryptionKeys(decryptionKeys));
         }
 
         context.AddPolicy(element);
     }
 
-    private static XElement HandleDecryptionKeys(IDocumentCompilationContext context, InitializerValue decryptionKeys)
+    private static XElement HandleDecryptionKeys(IReadOnlyList<CompiledConfigs.DecryptionKey> decryptionKeys)
     {
         XElement listElement = new("decryption-keys");
-        foreach (InitializerValue initializer in decryptionKeys.UnnamedValues ?? [])
+        foreach (var key in decryptionKeys)
         {
-            if (!initializer.TryGetValues<DecryptionKey>(
-                    out IReadOnlyDictionary<string, InitializerValue>? decryptionKey))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotAnObjectCreation,
-                    initializer.Node.GetLocation(),
-                    "validate-azure-ad-token.decryption-keys.key",
-                    nameof(DecryptionKey)
-                ));
-                continue;
-            }
-
-            XElement decryptionElement = new("key");
-            if (!decryptionElement.AddAttribute(decryptionKey, nameof(DecryptionKey.CertificateId),
-                    "certificate-id"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    initializer.Node.GetLocation(),
-                    "validate-azure-ad-token.decryption-keys.key",
-                    nameof(DecryptionKey.CertificateId)
-                ));
-            }
-
-            listElement.Add(decryptionElement);
+            XElement keyElement = new("key");
+            keyElement.Add(new XAttribute("certificate-id", key.CertificateId));
+            listElement.Add(keyElement);
         }
 
         return listElement;
-    }
-
-    private sealed class LocalValidateAzureAdTokenCompiledConfig
-    {
-        public required ExpressionValue<string> TenantId { get; init; }
-        public ExpressionValue<string>? HeaderName { get; init; }
-        public ExpressionValue<string>? QueryParameterName { get; init; }
-        public ExpressionValue<string>? TokenValue { get; init; }
-        public ExpressionValue<int>? FailedValidationHttpCode { get; init; }
-        public ExpressionValue<string>? FailedValidationErrorMessage { get; init; }
-        public ExpressionValue<string>? OutputTokenVariableName { get; init; }
-        public InitializerValue? BackendApplicationIds { get; init; }
-        public InitializerValue? ClientApplicationIds { get; init; }
-        public InitializerValue? Audiences { get; init; }
-        public InitializerValue? RequiredClaims { get; init; }
-        public InitializerValue? DecryptionKeys { get; init; }
     }
 }

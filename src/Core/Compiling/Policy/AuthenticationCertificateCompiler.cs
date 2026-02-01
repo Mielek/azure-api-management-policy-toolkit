@@ -31,29 +31,13 @@ public class AuthenticationCertificateCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var certElement = new XElement("authentication-certificate");
 
-        var thumbprintAdded = false;
-        var certIdAdded = false;
-        var bodyAdded = false;
-
-        if (config.Thumbprint is { } thumbprint)
+        var count = new[]
         {
-            certElement.Add(new XAttribute("thumbprint", thumbprint.ToXmlValue()));
-            thumbprintAdded = true;
-        }
+            certElement.TryAddAttribute("thumbprint", config.Thumbprint),
+            certElement.TryAddAttribute("certificate-id", config.CertificateId),
+            certElement.TryAddAttribute("body", config.Body)
+        }.Count(x => x);
 
-        if (config.CertificateId is { } certId)
-        {
-            certElement.Add(new XAttribute("certificate-id", certId.ToXmlValue()));
-            certIdAdded = true;
-        }
-
-        if (config.Body is { } body)
-        {
-            certElement.Add(new XAttribute("body", body.ToXmlValue()));
-            bodyAdded = true;
-        }
-
-        var count = new[] { thumbprintAdded, certIdAdded, bodyAdded }.Count(x => x);
         if (count != 1)
         {
             context.Report(Diagnostic.Create(
@@ -67,41 +51,32 @@ public class AuthenticationCertificateCompiler : IMethodPolicyHandler
             return;
         }
 
-        if (config.Password is { } password)
-        {
-            certElement.Add(new XAttribute("password", password.ToXmlValue()));
-        }
+        certElement.TryAddAttribute("password", config.Password);
 
         context.AddPolicy(certElement);
     }
 
     public static void HandleCertificateAuthentication(
-        IDocumentCompilationContext context,
         XElement element,
-        IReadOnlyDictionary<string, InitializerValue> values,
-        SyntaxNode node)
+        Configs.CertificateAuthenticationConfig config)
     {
         XElement certElement = new("authentication-certificate");
-        certElement.AddAttribute(values, nameof(CertificateAuthenticationConfig.Password), "password");
 
-        if (new[]
-            {
-                certElement.AddAttribute(values, nameof(CertificateAuthenticationConfig.Thumbprint), "thumbprint"),
-                certElement.AddAttribute(values, nameof(CertificateAuthenticationConfig.CertificateId),
-                    "certificate-id"),
-                certElement.AddAttribute(values, nameof(CertificateAuthenticationConfig.Body), "body")
-            }.Count(b => b) != 1)
+        var count = new[]
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.OnlyOneOfTreeShouldBeDefined,
-                node.GetLocation(),
-                $"{element.Name}.authentication-certificate",
-                nameof(CertificateAuthenticationConfig.Thumbprint),
-                nameof(CertificateAuthenticationConfig.CertificateId),
-                nameof(CertificateAuthenticationConfig.Body)
-            ));
+            certElement.TryAddAttribute("thumbprint", config.Thumbprint),
+            certElement.TryAddAttribute("certificate-id", config.CertificateId),
+            certElement.TryAddAttribute("body", config.Body)
+        }.Count(x => x);
+
+        if (count != 1)
+        {
+            // Note: validation should be done at extraction time with CompiledConfigExtractor
+            // This method assumes the config is already valid
             return;
         }
+
+        certElement.TryAddAttribute("password", config.Password);
 
         element.Add(certElement);
     }

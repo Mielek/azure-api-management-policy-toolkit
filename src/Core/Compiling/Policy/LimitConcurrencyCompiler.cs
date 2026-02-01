@@ -10,6 +10,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class LimitConcurrencyCompiler : IMethodPolicyHandler
@@ -35,13 +37,14 @@ public class LimitConcurrencyCompiler : IMethodPolicyHandler
         }
 
         ExpressionSyntax configExpression = node.ArgumentList.Arguments[0].Expression;
-        var configResult = ConfigurationExtractor.ExtractFromExpression<LimitConcurrencyConfig>(configExpression, context, "limit-concurrency");
+        var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.LimitConcurrencyConfig>(
+            configExpression, context, "limit-concurrency");
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> config = configResult.Value;
+        var config = configResult.Value;
 
         ExpressionSyntax childPoliciesLambdaExpression = node.ArgumentList.Arguments[1].Expression;
         if (childPoliciesLambdaExpression is not LambdaExpressionSyntax lambda)
@@ -66,27 +69,8 @@ public class LimitConcurrencyCompiler : IMethodPolicyHandler
 
         XElement element = new("limit-concurrency");
 
-        if (!element.AddAttribute(config, nameof(LimitConcurrencyConfig.Key), "key"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "limit-concurrency",
-                nameof(LimitConcurrencyConfig.Key)
-            ));
-            return;
-        }
-
-        if (!element.AddAttribute(config, nameof(LimitConcurrencyConfig.MaxCount), "max-count"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "limit-concurrency",
-                nameof(LimitConcurrencyConfig.MaxCount)
-            ));
-            return;
-        }
+        element.Add(new XAttribute("key", config.Key.ToXmlValue()));
+        element.Add(new XAttribute("max-count", config.MaxCount));
 
         var subContext = new DocumentCompilationContext(context, element);
         _blockCompiler.Value.Compile(subContext, lambda.Block);

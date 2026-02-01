@@ -4,10 +4,10 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
@@ -17,7 +17,7 @@ public class ValidateClientCertificateCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalValidateClientCertificateCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ValidateClientCertificateConfig>(
             node, context, "validate-client-certificate");
 
         if (!configResult.IsSuccess)
@@ -29,79 +29,37 @@ public class ValidateClientCertificateCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("validate-client-certificate");
 
-        if (config.ValidateRevocation is { } validateRevocation)
-        {
-            element.Add(new XAttribute("validate-revocation", validateRevocation.ToXmlValue()));
-        }
+        element.TryAddAttribute("validate-revocation", config.ValidateRevocation);
+        element.TryAddAttribute("validate-trust", config.ValidateTrust);
+        element.TryAddAttribute("validate-not-before", config.ValidateNotBefore);
+        element.TryAddAttribute("validate-not-after", config.ValidateNotAfter);
+        element.TryAddAttribute("ignore-error", config.IgnoreError);
 
-        if (config.ValidateTrust is { } validateTrust)
+        if (config.Identities is { } identities)
         {
-            element.Add(new XAttribute("validate-trust", validateTrust.ToXmlValue()));
-        }
-
-        if (config.ValidateNotBefore is { } validateNotBefore)
-        {
-            element.Add(new XAttribute("validate-not-before", validateNotBefore.ToXmlValue()));
-        }
-
-        if (config.ValidateNotAfter is { } validateNotAfter)
-        {
-            element.Add(new XAttribute("validate-not-after", validateNotAfter.ToXmlValue()));
-        }
-
-        if (config.IgnoreError is { } ignoreError)
-        {
-            element.Add(new XAttribute("ignore-error", ignoreError.ToXmlValue()));
-        }
-
-        if (config.Identities is { } identitiesValue)
-        {
-            XElement identities = HandleIdentities(context, identitiesValue);
-            element.Add(identities);
+            element.Add(HandleIdentities(identities));
         }
 
         context.AddPolicy(element);
     }
 
-    private static XElement HandleIdentities(IDocumentCompilationContext context, InitializerValue identitiesValue)
+    private static XElement HandleIdentities(IReadOnlyList<CompiledConfigs.CertificateIdentity> identities)
     {
-        XElement identities = new("identities");
-        foreach (InitializerValue identityValue in identitiesValue.UnnamedValues ?? [])
+        XElement identitiesElement = new("identities");
+        foreach (var identity in identities)
         {
-            if (!identityValue.TryGetValues<CertificateIdentity>(
-                    out IReadOnlyDictionary<string, InitializerValue>? certValues))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    identityValue.Node.GetLocation(),
-                    "identity",
-                    nameof(CertificateIdentity)
-                ));
-                continue;
-            }
-
-            XElement identity = new("identity");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.Thumbprint), "thumbprint");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.SerialNumber), "serial-number");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.CommonName), "common-name");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.Subject), "subject");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.DnsName), "dns-name");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.IssuerSubject), "issuer-subject");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.IssuerThumbprint), "issuer-thumbprint");
-            identity.AddAttribute(certValues, nameof(CertificateIdentity.IssuerCertificateId), "issuer-certificate-id");
-            identities.Add(identity);
+            XElement identityElement = new("identity");
+            identityElement.TryAddAttribute("thumbprint", identity.Thumbprint);
+            identityElement.TryAddAttribute("serial-number", identity.SerialNumber);
+            identityElement.TryAddAttribute("common-name", identity.CommonName);
+            identityElement.TryAddAttribute("subject", identity.Subject);
+            identityElement.TryAddAttribute("dns-name", identity.DnsName);
+            identityElement.TryAddAttribute("issuer-subject", identity.IssuerSubject);
+            identityElement.TryAddAttribute("issuer-thumbprint", identity.IssuerThumbprint);
+            identityElement.TryAddAttribute("issuer-certificate-id", identity.IssuerCertificateId);
+            identitiesElement.Add(identityElement);
         }
 
-        return identities;
-    }
-
-    private sealed class LocalValidateClientCertificateCompiledConfig
-    {
-        public ExpressionValue<bool>? ValidateRevocation { get; init; }
-        public ExpressionValue<bool>? ValidateTrust { get; init; }
-        public ExpressionValue<bool>? ValidateNotBefore { get; init; }
-        public ExpressionValue<bool>? ValidateNotAfter { get; init; }
-        public ExpressionValue<bool>? IgnoreError { get; init; }
-        public InitializerValue? Identities { get; init; }
+        return identitiesElement;
     }
 }

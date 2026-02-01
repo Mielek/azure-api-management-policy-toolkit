@@ -4,10 +4,10 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
@@ -17,7 +17,7 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalValidateParametersCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ValidateParametersConfig>(
             node, context, "validate-parameters");
 
         if (!configResult.IsSuccess)
@@ -32,212 +32,74 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
         element.Add(new XAttribute("specified-parameter-action", config.SpecifiedParameterAction.ToXmlValue()));
         element.Add(new XAttribute("unspecified-parameter-action", config.UnspecifiedParameterAction.ToXmlValue()));
 
-        if (config.ErrorsVariableName is { } errorsVar)
+        element.TryAddAttribute("errors-variable-name", config.ErrorsVariableName);
+
+        if (config.Headers is { } headers)
         {
-            element.Add(new XAttribute("errors-variable-name", errorsVar.ToXmlValue()));
+            AddHeadersElement(element, headers);
         }
 
-        if (config.Headers is { } headersValue)
+        if (config.Query is { } query)
         {
-            AddHeadersElement(context, headersValue, element);
+            AddQueryElement(element, query);
         }
 
-        if (config.Query is { } queryValue)
+        if (config.Path is { } path)
         {
-            AddQueryElement(context, queryValue, element);
-        }
-
-        if (config.Path is { } pathValue)
-        {
-            AddPathElement(context, pathValue, element);
+            AddPathElement(element, path);
         }
 
         context.AddPolicy(element);
     }
 
-    private static void AddHeadersElement(IDocumentCompilationContext context, InitializerValue headersValue,
-        XElement parentElement)
+    private static void AddHeadersElement(XElement parentElement, CompiledConfigs.ValidateHeaderParameters headers)
     {
-        if (!headersValue.TryGetValues<ValidateHeaderParameters>(out var headerParams))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                headersValue.Node.GetLocation(),
-                "validate-parameters.headers",
-                nameof(ValidateHeaderParameters)
-            ));
-            return;
-        }
-
         XElement headersElement = new("headers");
 
-        if (!headersElement.AddAttribute(headerParams, nameof(ValidateHeaderParameters.SpecifiedParameterAction),
-                "specified-parameter-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                headersValue.Node.GetLocation(),
-                "validate-parameters.headers",
-                nameof(ValidateHeaderParameters.SpecifiedParameterAction)
-            ));
-            return;
-        }
+        headersElement.Add(new XAttribute("specified-parameter-action", headers.SpecifiedParameterAction.ToXmlValue()));
+        headersElement.Add(new XAttribute("unspecified-parameter-action", headers.UnspecifiedParameterAction.ToXmlValue()));
 
-        if (!headersElement.AddAttribute(headerParams, nameof(ValidateHeaderParameters.UnspecifiedParameterAction),
-                "unspecified-parameter-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                headersValue.Node.GetLocation(),
-                "validate-parameters.headers",
-                nameof(ValidateHeaderParameters.UnspecifiedParameterAction)
-            ));
-            return;
-        }
-
-        if (headerParams.TryGetValue(nameof(ValidateHeaderParameters.Parameters), out var parametersValue))
-        {
-            AddParameters(context, parametersValue, headersElement, "validate-parameters.headers");
-        }
+        AddParameters(headersElement, headers.Parameters);
 
         parentElement.Add(headersElement);
     }
 
-    private static void AddQueryElement(IDocumentCompilationContext context, InitializerValue queryValue,
-        XElement parentElement)
+    private static void AddQueryElement(XElement parentElement, CompiledConfigs.ValidateQueryParameters query)
     {
-        if (!queryValue.TryGetValues<ValidateQueryParameters>(out var queryParams))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                queryValue.Node.GetLocation(),
-                "validate-parameters.query",
-                nameof(ValidateQueryParameters)
-            ));
-            return;
-        }
-
         XElement queryElement = new("query");
 
-        if (!queryElement.AddAttribute(queryParams, nameof(ValidateQueryParameters.SpecifiedParameterAction),
-                "specified-parameter-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                queryValue.Node.GetLocation(),
-                "validate-parameters.query",
-                nameof(ValidateQueryParameters.SpecifiedParameterAction)
-            ));
-            return;
-        }
+        queryElement.Add(new XAttribute("specified-parameter-action", query.SpecifiedParameterAction.ToXmlValue()));
+        queryElement.Add(new XAttribute("unspecified-parameter-action", query.UnspecifiedParameterAction.ToXmlValue()));
 
-        if (!queryElement.AddAttribute(queryParams, nameof(ValidateQueryParameters.UnspecifiedParameterAction),
-                "unspecified-parameter-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                queryValue.Node.GetLocation(),
-                "validate-parameters.query",
-                nameof(ValidateQueryParameters.UnspecifiedParameterAction)
-            ));
-            return;
-        }
-
-        if (queryParams.TryGetValue(nameof(ValidateQueryParameters.Parameters), out var parametersValue))
-        {
-            AddParameters(context, parametersValue, queryElement, "validate-parameters.query");
-        }
+        AddParameters(queryElement, query.Parameters);
 
         parentElement.Add(queryElement);
     }
 
-    private static void AddPathElement(IDocumentCompilationContext context, InitializerValue pathValue,
-        XElement parentElement)
+    private static void AddPathElement(XElement parentElement, CompiledConfigs.ValidatePathParameters path)
     {
-        if (!pathValue.TryGetValues<ValidatePathParameters>(out var pathParams))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                pathValue.Node.GetLocation(),
-                "validate-parameters.path",
-                nameof(ValidatePathParameters)
-            ));
-            return;
-        }
-
         XElement pathElement = new("path");
 
-        if (!pathElement.AddAttribute(pathParams, nameof(ValidatePathParameters.SpecifiedParameterAction),
-                "specified-parameter-action"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                pathValue.Node.GetLocation(),
-                "validate-parameters.path",
-                nameof(ValidatePathParameters.SpecifiedParameterAction)
-            ));
-            return;
-        }
+        pathElement.Add(new XAttribute("specified-parameter-action", path.SpecifiedParameterAction.ToXmlValue()));
 
-        if (pathParams.TryGetValue(nameof(ValidatePathParameters.Parameters), out var parametersValue))
-        {
-            AddParameters(context, parametersValue, pathElement, "validate-parameters.path");
-        }
+        AddParameters(pathElement, path.Parameters);
 
         parentElement.Add(pathElement);
     }
 
-    private static void AddParameters(IDocumentCompilationContext context, InitializerValue parametersValue,
-        XElement parentElement, string policyPath)
+    private static void AddParameters(XElement parentElement, IReadOnlyList<CompiledConfigs.ValidateParameter>? parameters)
     {
-        foreach (var paramValue in parametersValue.UnnamedValues ?? [])
+        if (parameters is null)
         {
-            if (!paramValue.TryGetValues<ValidateParameter>(out var paramValues))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    paramValue.Node.GetLocation(),
-                    $"{policyPath}.parameter",
-                    nameof(ValidateParameter)
-                ));
-                continue;
-            }
+            return;
+        }
 
+        foreach (var param in parameters)
+        {
             XElement paramElement = new("parameter");
-
-            if (!paramElement.AddAttribute(paramValues, nameof(ValidateParameter.Name), "name"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    paramValue.Node.GetLocation(),
-                    $"{policyPath}.parameter",
-                    nameof(ValidateParameter.Name)
-                ));
-                continue;
-            }
-
-            if (!paramElement.AddAttribute(paramValues, nameof(ValidateParameter.Action), "action"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    paramValue.Node.GetLocation(),
-                    $"{policyPath}.parameter",
-                    nameof(ValidateParameter.Action)
-                ));
-                continue;
-            }
-
+            paramElement.Add(new XAttribute("name", param.Name));
+            paramElement.Add(new XAttribute("action", param.Action.ToXmlValue()));
             parentElement.Add(paramElement);
         }
-    }
-
-    private sealed class LocalValidateParametersCompiledConfig
-    {
-        public required ExpressionValue<string> SpecifiedParameterAction { get; init; }
-        public required ExpressionValue<string> UnspecifiedParameterAction { get; init; }
-        public ExpressionValue<string>? ErrorsVariableName { get; init; }
-        public InitializerValue? Headers { get; init; }
-        public InitializerValue? Query { get; init; }
-        public InitializerValue? Path { get; init; }
     }
 }

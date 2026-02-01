@@ -10,6 +10,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class RetryCompiler : IMethodPolicyHandler
@@ -35,13 +37,14 @@ public class RetryCompiler : IMethodPolicyHandler
         }
 
         ExpressionSyntax configExpression = node.ArgumentList.Arguments[0].Expression;
-        var configResult = ConfigurationExtractor.ExtractFromExpression<RetryConfig>(configExpression, context, "retry");
+        var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.RetryConfig>(
+            configExpression, context, "retry");
         if (!configResult.IsSuccess)
         {
             configResult.ReportAll(context);
             return;
         }
-        IReadOnlyDictionary<string, InitializerValue> config = configResult.Value;
+        var config = configResult.Value;
 
         ExpressionSyntax childPoliciesLambdaExpression = node.ArgumentList.Arguments[1].Expression;
         if (childPoliciesLambdaExpression is not LambdaExpressionSyntax lambda)
@@ -65,42 +68,13 @@ public class RetryCompiler : IMethodPolicyHandler
         }
 
         XElement element = new("retry");
-        if (!element.AddAttribute(config, nameof(RetryConfig.Condition), "condition"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "retry",
-                nameof(RetryConfig.Condition)
-            ));
-            return;
-        }
-
-        if (!element.AddAttribute(config, nameof(RetryConfig.Count), "count"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "retry",
-                nameof(RetryConfig.Count)
-            ));
-            return;
-        }
-
-        if (!element.AddAttribute(config, nameof(RetryConfig.Interval), "interval"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "retry",
-                nameof(RetryConfig.Interval)
-            ));
-            return;
-        }
-
-        element.AddAttribute(config, nameof(RetryConfig.MaxInterval), "max-interval");
-        element.AddAttribute(config, nameof(RetryConfig.Delta), "delta");
-        element.AddAttribute(config, nameof(RetryConfig.FirstFastRetry), "first-fast-retry");
+        
+        element.Add(new XAttribute("condition", config.Condition.ToXmlValue()));
+        element.Add(new XAttribute("count", config.Count.ToXmlValue()));
+        element.TryAddAttribute("interval", config.Interval);
+        element.TryAddAttribute("max-interval", config.MaxInterval);
+        element.TryAddAttribute("delta", config.Delta);
+        element.TryAddAttribute("first-fast-retry", config.FirstFastRetry);
 
         var subContext = new DocumentCompilationContext(context, element);
         _blockCompiler.Value.Compile(subContext, lambda.Block);

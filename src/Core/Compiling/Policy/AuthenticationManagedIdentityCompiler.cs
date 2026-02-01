@@ -52,26 +52,14 @@ public class AuthenticationManagedIdentityCompiler : IMethodPolicyHandler
     }
 
     public static void HandleManagedIdentityAuthentication(
-        IDocumentCompilationContext context,
         XElement element,
-        IReadOnlyDictionary<string, InitializerValue> values,
-        SyntaxNode node)
+        Configs.ManagedIdentityAuthenticationConfig config)
     {
         XElement certElement = new("authentication-managed-identity");
-        if (!certElement.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.Resource), "resource"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                $"{element.Name}.authentication-managed-identity",
-                nameof(ManagedIdentityAuthenticationConfig.Resource)
-            ));
-        }
-
-        certElement.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.ClientId), "client-id");
-        certElement.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.OutputTokenVariableName),
-            "output-token-variable-name");
-        certElement.AddAttribute(values, nameof(ManagedIdentityAuthenticationConfig.IgnoreError), "ignore-error");
+        certElement.Add(new XAttribute("resource", config.Resource.ToXmlValue()));
+        certElement.TryAddAttribute("client-id", config.ClientId);
+        certElement.TryAddAttribute("output-token-variable-name", config.OutputTokenVariableName);
+        certElement.TryAddAttribute("ignore-error", config.IgnoreError);
         element.Add(certElement);
     }
 }

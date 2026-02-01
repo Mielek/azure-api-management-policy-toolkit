@@ -3,35 +3,37 @@
 
 using System.Xml.Linq;
 
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public static class GenericCompiler
 {
     public static void HandleList(
         XElement element,
-        IReadOnlyDictionary<string, InitializerValue> values,
-        string key,
-        string listName,
-        string elementName)
-    {
-        if (!values.TryGetValue(key, out InitializerValue? listInitializer))
-        {
-            return;
-        }
-
-        HandleListFromInitializer(element, listInitializer, listName, elementName);
-    }
-
-    public static void HandleListFromInitializer(
-        XElement element,
-        InitializerValue listInitializer,
+        IReadOnlyList<string> values,
         string listName,
         string elementName)
     {
         XElement listElement = new(listName);
-        foreach (InitializerValue initializer in listInitializer.UnnamedValues ?? [])
+        foreach (var value in values)
         {
-            listElement.Add(new XElement(elementName, initializer.Value!));
+            listElement.Add(new XElement(elementName, value));
+        }
+
+        element.Add(listElement);
+    }
+
+    public static void HandleList(
+        XElement element,
+        IReadOnlyList<ExpressionValue<string>> values,
+        string listName,
+        string elementName)
+    {
+        XElement listElement = new(listName);
+        foreach (var value in values)
+        {
+            listElement.Add(new XElement(elementName, value.ToXmlValue()));
         }
 
         element.Add(listElement);

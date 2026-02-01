@@ -4,10 +4,10 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
@@ -17,7 +17,7 @@ public class SendOneWayRequestCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalSendOneWayRequestCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.SendOneWayRequestConfig>(
             node, context, "send-one-way-request");
 
         if (!configResult.IsSuccess)
@@ -29,15 +29,8 @@ public class SendOneWayRequestCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("send-one-way-request");
 
-        if (config.Mode is { } mode)
-        {
-            element.Add(new XAttribute("mode", mode.ToXmlValue()));
-        }
-
-        if (config.Timeout is { } timeout)
-        {
-            element.Add(new XAttribute("timeout", timeout.ToXmlValue()));
-        }
+        element.TryAddAttribute("mode", config.Mode);
+        element.TryAddAttribute("timeout", config.Timeout);
 
         if (config.Url is { } url)
         {
@@ -46,74 +39,50 @@ public class SendOneWayRequestCompiler : IMethodPolicyHandler
 
         if (config.Method is { } method)
         {
-            element.Add(new XElement("set-method", method.ToXmlValue()));
+            element.Add(new XElement("set-method", method));
         }
 
         if (config.Headers is { } headers)
         {
-            BaseSetHeaderCompiler.HandleHeaders(context, element, headers);
+            BaseSetHeaderCompiler.HandleHeaders(element, headers);
         }
 
         if (config.Body is { } body)
         {
-            SetBodyCompiler.HandleBody(context, element, body);
+            SetBodyCompiler.HandleBody(element, body);
         }
 
         if (config.Authentication is { } authentication)
         {
-            HandleAuthentication(context, element, authentication);
+            HandleAuthentication(element, authentication);
         }
 
         if (config.Proxy is { } proxy)
         {
-            ProxyCompiler.HandleProxy(context, element, proxy);
+            element.Add(ProxyCompiler.HandleProxy(proxy));
         }
 
         context.AddPolicy(element);
     }
 
-    private void HandleAuthentication(IDocumentCompilationContext context, XElement element,
-        InitializerValue authentication)
+    private void HandleAuthentication(XElement element, CompiledConfigs.AuthenticationConfigUnion authentication)
     {
-        IReadOnlyDictionary<string, InitializerValue>? values = authentication.NamedValues;
-        if (values is null)
-        {
-            return;
-        }
-
-        switch (authentication.Type)
-        {
-            case nameof(CertificateAuthenticationConfig):
-                AuthenticationCertificateCompiler.HandleCertificateAuthentication(context, element, values,
-                    authentication.Node);
-                break;
-            case nameof(BasicAuthenticationConfig):
-                AuthenticationBasicCompiler.HandleBasicAuthentication(context, element, values, authentication.Node);
-                break;
-            case nameof(ManagedIdentityAuthenticationConfig):
-                AuthenticationManagedIdentityCompiler.HandleManagedIdentityAuthentication(context, element, values,
-                    authentication.Node);
-                break;
-            default:
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.NotSupportedType,
-                    authentication.Node.GetLocation(),
-                    $"{element.Name}",
-                    authentication.Type
-                ));
-                break;
-        }
-    }
-
-    private sealed class LocalSendOneWayRequestCompiledConfig
-    {
-        public ExpressionValue<string>? Mode { get; init; }
-        public ExpressionValue<int>? Timeout { get; init; }
-        public ExpressionValue<string>? Url { get; init; }
-        public ExpressionValue<string>? Method { get; init; }
-        public InitializerValue? Headers { get; init; }
-        public InitializerValue? Body { get; init; }
-        public InitializerValue? Authentication { get; init; }
-        public InitializerValue? Proxy { get; init; }
+        _ = authentication.Match(
+            basic =>
+            {
+                AuthenticationBasicCompiler.HandleBasicAuthentication(element, basic);
+                return 0;
+            },
+            certificate =>
+            {
+                AuthenticationCertificateCompiler.HandleCertificateAuthentication(element, certificate);
+                return 0;
+            },
+            managedIdentity =>
+            {
+                AuthenticationManagedIdentityCompiler.HandleManagedIdentityAuthentication(element, managedIdentity);
+                return 0;
+            }
+        );
     }
 }

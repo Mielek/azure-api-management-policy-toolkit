@@ -54,16 +54,19 @@ public record ValidateAzureAdTokenConfig
     /// <summary>
     /// The application IDs of the backend services.
     /// </summary>
+    [ExpressionAllowed]
     public string[]? BackendApplicationIds { get; init; }
 
     /// <summary>
     /// The application IDs of the client applications.
     /// </summary>
+    [ExpressionAllowed]
     public string[]? ClientApplicationIds { get; init; }
 
     /// <summary>
     /// The expected audiences for the token.
     /// </summary>
+    [ExpressionAllowed]
     public string[]? Audiences { get; init; }
 
     /// <summary>

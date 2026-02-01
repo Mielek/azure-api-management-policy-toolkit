@@ -3,6 +3,8 @@
 
 using System.Xml.Linq;
 
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling;
 
 /// <summary>
@@ -11,22 +13,43 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling;
 public static class XElementExtensions
 {
     /// <summary>
-    /// Adds an attribute to the element if the specified key exists in the values dictionary.
+    /// Tries to add an attribute to the element if the value is not null.
+    /// </summary>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <param name="element">The element to add the attribute to.</param>
+    /// <param name="attributeName">The name of the attribute to add.</param>
+    /// <param name="value">The expression value (may be null).</param>
+    /// <returns>True if the attribute was added, false otherwise.</returns>
+    public static bool TryAddAttribute<T>(
+        this XElement element,
+        string attributeName,
+        ExpressionValue<T>? value)
+    {
+        if (value is { } notNullValue)
+        {
+            element.Add(new XAttribute(attributeName, notNullValue.ToXmlValue()));
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Tries to add an attribute to the element if the value is not null.
+    /// Uses <see cref="object.ToString"/> for conversion.
     /// </summary>
     /// <param name="element">The element to add the attribute to.</param>
-    /// <param name="values">The dictionary of initializer values.</param>
-    /// <param name="key">The key to look up in the dictionary.</param>
     /// <param name="attributeName">The name of the attribute to add.</param>
+    /// <param name="value">The value (may be null).</param>
     /// <returns>True if the attribute was added, false otherwise.</returns>
-    public static bool AddAttribute(
+    public static bool TryAddAttribute(
         this XElement element,
-        IReadOnlyDictionary<string, InitializerValue> values,
-        string key,
-        string attributeName)
+        string attributeName,
+        object? value)
     {
-        if (values.TryGetValue(key, out var value) && value.Value is not null)
+        if (value is not null)
         {
-            element.Add(new XAttribute(attributeName, value.Value));
+            element.Add(new XAttribute(attributeName, value.ToString()!));
             return true;
         }
 
@@ -42,23 +65,5 @@ public static class XElementExtensions
     public static void AddAttribute(this XElement element, string attributeName, string value)
     {
         element.Add(new XAttribute(attributeName, value));
-    }
-
-    /// <summary>
-    /// Adds an attribute to the element if the value is not null or empty.
-    /// </summary>
-    /// <param name="element">The element to add the attribute to.</param>
-    /// <param name="attributeName">The name of the attribute to add.</param>
-    /// <param name="value">The value of the attribute (may be null).</param>
-    /// <returns>True if the attribute was added, false otherwise.</returns>
-    public static bool AddAttributeIfNotEmpty(this XElement element, string attributeName, string? value)
-    {
-        if (!string.IsNullOrEmpty(value))
-        {
-            element.Add(new XAttribute(attributeName, value));
-            return true;
-        }
-
-        return false;
     }
 }

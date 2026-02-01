@@ -209,8 +209,7 @@ public class PolicyConfigGenerator : ISourceGenerator
         // Skip special types like ExpressionValue, Expression, etc.
         var name = type.Name;
         if (name == "Expression" || 
-            name.StartsWith("ExpressionValue", StringComparison.Ordinal) ||
-            name == "InitializerValue")
+            name.StartsWith("ExpressionValue", StringComparison.Ordinal))
         {
             return false;
         }
