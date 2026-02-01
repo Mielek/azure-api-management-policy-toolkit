@@ -85,6 +85,7 @@ public record ContentTypeMap
     /// <summary>
     /// Optional condition for when the mapping should be applied.
     /// </summary>
+    [ExpressionAllowed]
     public bool? When { get; init; }
 }
 
@@ -102,6 +103,7 @@ public record ValidateContent
     /// <summary>
     /// Action to take when validation fails.
     /// </summary>
+    [ExpressionAllowed]
     public required string Action { get; init; }
 
     /// <summary>

@@ -79,7 +79,7 @@ public class ValidateContentCompiler : IMethodPolicyHandler
                 
                 if (typeMap.When is { } when)
                 {
-                    typeElement.Add(new XAttribute("when", when.ToString().ToLowerInvariant()));
+                    typeElement.Add(new XAttribute("when", when.ToXmlValue()));
                 }
 
                 mapElement.Add(typeElement);
@@ -95,7 +95,7 @@ public class ValidateContentCompiler : IMethodPolicyHandler
         {
             XElement contentElement = new("content");
             contentElement.Add(new XAttribute("validate-as", validateContent.ValidateAs));
-            contentElement.Add(new XAttribute("action", validateContent.Action));
+            contentElement.Add(new XAttribute("action", validateContent.Action.ToXmlValue()));
             
             if (validateContent.Type is { } type)
             {

@@ -32,7 +32,11 @@ public class SetStatusCompiler : IMethodPolicyHandler
         var statusElement = new XElement("set-status");
         
         statusElement.Add(new XAttribute("code", config.Code.ToXmlValue()));
-        statusElement.Add(new XAttribute("reason", config.Reason.ToXmlValue()));
+
+        if (config.Reason is { } reason)
+        {
+            statusElement.Add(new XAttribute("reason", reason.ToXmlValue()));
+        }
 
         context.AddPolicy(statusElement);
     }
@@ -41,7 +45,12 @@ public class SetStatusCompiler : IMethodPolicyHandler
     {
         var statusElement = new XElement("set-status");
         statusElement.Add(new XAttribute("code", status.Code.ToXmlValue()));
-        statusElement.Add(new XAttribute("reason", status.Reason.ToXmlValue()));
+        
+        if (status.Reason is { } reason)
+        {
+            statusElement.Add(new XAttribute("reason", reason.ToXmlValue()));
+        }
+        
         element.Add(statusElement);
     }
 }
