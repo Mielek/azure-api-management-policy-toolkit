@@ -10,17 +10,20 @@ namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Generators;
 
 /// <summary>
 /// Emits discriminated union types for interfaces with multiple implementations.
+/// Includes ExtractUnion() method for reflection-free extraction.
 /// </summary>
 internal class UnionTypeEmitter
 {
     private const string CompiledConfigNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs";
+    private const string CompilingNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling";
+    private const string ResultsNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Results";
+    private const string DiagnosticsNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics";
 
     public string Emit(INamedTypeSymbol interfaceSymbol, List<ConfigInfo> implementations)
     {
         var sb = new StringBuilder();
         var interfaceName = interfaceSymbol.Name;
 
-        // Generate union type name by removing "I" prefix
         var unionName = interfaceName;
         if (unionName.StartsWith("I", StringComparison.Ordinal) && unionName.Length > 1 && char.IsUpper(unionName[1]))
         {
@@ -33,9 +36,7 @@ internal class UnionTypeEmitter
         sb.AppendLine();
         sb.AppendLine($"namespace {CompiledConfigNamespace};");
         sb.AppendLine();
-        sb.AppendLine("/// <summary>");
-        sb.AppendLine($"/// Discriminated union for implementations of <see cref=\"{interfaceSymbol.ContainingNamespace.ToDisplayString()}.{interfaceName}\"/>.");
-        sb.AppendLine("/// </summary>");
+        sb.AppendLine($"[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"PolicyConfigGenerator\", \"1.0.0\")]");
         sb.AppendLine($"public abstract class {unionName}");
         sb.AppendLine("{");
         sb.AppendLine($"    private {unionName}() {{ }}");
@@ -50,25 +51,20 @@ internal class UnionTypeEmitter
                 caseName = caseName.Substring(0, caseName.Length - 6);
             }
 
-            sb.AppendLine($"    /// <summary>");
-            sb.AppendLine($"    /// Case for <see cref=\"{impl.Namespace}.{impl.ClassName}\"/>.");
-            sb.AppendLine($"    /// </summary>");
             sb.AppendLine($"    public sealed class {caseName} : {unionName}");
             sb.AppendLine("    {");
-            sb.AppendLine($"        /// <summary>Gets the compiled config.</summary>");
             sb.AppendLine($"        public {impl.ClassName} Config {{ get; }}");
-            sb.AppendLine();
-            sb.AppendLine($"        /// <summary>Creates a new {caseName} case.</summary>");
-            sb.AppendLine($"        public {caseName}({impl.ClassName} config)");
-            sb.AppendLine("        {");
-            sb.AppendLine("            Config = config;");
-            sb.AppendLine("        }");
+            sb.AppendLine($"        public {caseName}({impl.ClassName} config) => Config = config;");
             sb.AppendLine("    }");
             sb.AppendLine();
         }
 
         // Generate Match method
         EmitMatchMethod(sb, unionName, implementations);
+        sb.AppendLine();
+
+        // Generate ExtractUnion method
+        EmitExtractUnionMethod(sb, unionName, implementations);
 
         sb.AppendLine("}");
 
@@ -77,9 +73,6 @@ internal class UnionTypeEmitter
 
     private void EmitMatchMethod(StringBuilder sb, string unionName, List<ConfigInfo> implementations)
     {
-        sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// Pattern matches on the union type.");
-        sb.AppendLine("    /// </summary>");
         sb.Append($"    public TResult Match<TResult>(");
 
         var parameters = new List<string>();
@@ -90,7 +83,6 @@ internal class UnionTypeEmitter
             {
                 caseName = caseName.Substring(0, caseName.Length - 6);
             }
-            var paramName = ToCamelCase(caseName);
             parameters.Add($"global::System.Func<{impl.ClassName}, TResult> on{caseName}");
         }
 
@@ -110,18 +102,51 @@ internal class UnionTypeEmitter
             sb.AppendLine($"            {caseName} c => on{caseName}(c.Config),");
         }
 
-        sb.AppendLine("            _ => throw new global::System.InvalidOperationException($\"Unknown union case: {GetType().Name}\")");
+        sb.AppendLine($"            _ => throw new global::System.InvalidOperationException($\"Unknown union case: {{GetType().Name}}\")");
         sb.AppendLine("        };");
         sb.AppendLine("    }");
     }
 
-    private static string ToCamelCase(string value)
+    private void EmitExtractUnionMethod(StringBuilder sb, string unionName, List<ConfigInfo> implementations)
     {
-        if (string.IsNullOrEmpty(value))
+        sb.AppendLine($"    public static {ResultsNamespace}.Result<{unionName}> ExtractUnion(");
+        sb.AppendLine($"        global::Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax expression,");
+        sb.AppendLine($"        {CompilingNamespace}.ICompilationContext context,");
+        sb.AppendLine($"        string policyName)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        if (expression is not global::Microsoft.CodeAnalysis.CSharp.Syntax.ObjectCreationExpressionSyntax objectCreation)");
+        sb.AppendLine("        {");
+        sb.AppendLine($"            return {ResultsNamespace}.Result<{unionName}>.Failure(");
+        sb.AppendLine($"                global::Microsoft.CodeAnalysis.Diagnostic.Create(");
+        sb.AppendLine($"                    {DiagnosticsNamespace}.CompilationErrors.PolicyArgumentIsNotAnObjectCreation,");
+        sb.AppendLine($"                    expression.GetLocation(),");
+        sb.AppendLine($"                    policyName,");
+        sb.AppendLine($"                    \"{unionName}\"));");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        var typeName = objectCreation.Type.ToString();");
+        sb.AppendLine("        return typeName switch");
+        sb.AppendLine("        {");
+
+        foreach (var impl in implementations)
         {
-            return value;
+            var caseName = impl.ClassName;
+            if (caseName.EndsWith("Config", StringComparison.Ordinal))
+            {
+                caseName = caseName.Substring(0, caseName.Length - 6);
+            }
+
+            sb.AppendLine($"            \"{impl.ClassName}\" => {impl.ClassName}.ExtractFromExpression(expression, context, policyName)");
+            sb.AppendLine($"                .Map(c => ({unionName})new {caseName}(c)),");
         }
 
-        return char.ToLowerInvariant(value[0]) + value.Substring(1);
+        sb.AppendLine($"            _ => {ResultsNamespace}.Result<{unionName}>.Failure(");
+        sb.AppendLine($"                global::Microsoft.CodeAnalysis.Diagnostic.Create(");
+        sb.AppendLine($"                    {DiagnosticsNamespace}.CompilationErrors.PolicyArgumentIsNotOfRequiredType,");
+        sb.AppendLine($"                    expression.GetLocation(),");
+        sb.AppendLine($"                    policyName,");
+        sb.AppendLine($"                    typeName))");
+        sb.AppendLine("        };");
+        sb.AppendLine("    }");
     }
 }

@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using System.Collections.Generic;
-using System.Linq;
+using System.Collections.Immutable;
 using System.Text;
 
 using Microsoft.CodeAnalysis;
@@ -11,41 +10,55 @@ using Microsoft.CodeAnalysis.Text;
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Generators;
 
 /// <summary>
-/// Source generator that creates compiled config classes from record/class types
-/// in the Authoring namespace of referenced assemblies.
+/// Incremental source generator that creates compiled config classes with strongly-typed
+/// Extract() methods from record/class types in the Authoring namespace.
 /// </summary>
 [Generator]
-public class PolicyConfigGenerator : ISourceGenerator
+public class PolicyConfigGenerator : IIncrementalGenerator
 {
     private const string AuthoringNamespace = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring";
     private const string ExpressionValueTypeName = "Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring.ExpressionValue`1";
 
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // No syntax receiver needed - we scan referenced assemblies
+        // Create a pipeline that finds all config types in referenced assemblies
+        var configTypes = context.CompilationProvider
+            .SelectMany((compilation, ct) =>
+            {
+                var expressionValueType = compilation.GetTypeByMetadataName(ExpressionValueTypeName);
+                if (expressionValueType is null)
+                {
+                    return ImmutableArray<INamedTypeSymbol>.Empty;
+                }
+                return FindAuthoringConfigTypes(compilation).ToImmutableArray();
+            });
+
+        // Combine all config types into a single collection for processing
+        var allConfigs = configTypes.Collect();
+
+        // Register the source output
+        context.RegisterSourceOutput(
+            context.CompilationProvider.Combine(allConfigs),
+            (ctx, source) => Execute(ctx, source.Left, source.Right));
     }
 
-    public void Execute(GeneratorExecutionContext context)
+    private void Execute(
+        SourceProductionContext context,
+        Compilation compilation,
+        ImmutableArray<INamedTypeSymbol> configTypes)
     {
-        var compilation = context.Compilation;
-        
-        // Check if Authoring assembly is referenced by looking for a known type
-        var expressionValueType = compilation.GetTypeByMetadataName(ExpressionValueTypeName);
-        if (expressionValueType is null)
+        if (configTypes.IsEmpty)
         {
-            // Authoring assembly not referenced
             return;
         }
 
         var configAnalyzer = new ConfigAnalyzer(compilation);
         var configEmitter = new CompiledConfigEmitter();
+        var extractorEmitter = new ConfigExtractorEmitter();
         var unionEmitter = new UnionTypeEmitter();
 
         var configsToGenerate = new List<ConfigInfo>();
         var interfaceImplementations = new Dictionary<INamedTypeSymbol, List<ConfigInfo>>(SymbolEqualityComparer.Default);
-
-        // Find all config types in the Authoring namespace
-        var configTypes = FindAuthoringConfigTypes(compilation);
 
         foreach (var typeSymbol in configTypes)
         {
@@ -54,7 +67,6 @@ public class PolicyConfigGenerator : ISourceGenerator
             {
                 configsToGenerate.Add(configInfo);
 
-                // Track interface implementations for union generation
                 foreach (var iface in configInfo.ImplementedInterfaces)
                 {
                     if (!interfaceImplementations.TryGetValue(iface, out var implementations))
@@ -67,7 +79,7 @@ public class PolicyConfigGenerator : ISourceGenerator
             }
         }
 
-        // Second pass: determine which types have derived classes
+        // Determine which types have derived classes
         var typesWithDerived = new HashSet<string>();
         foreach (var config in configsToGenerate)
         {
@@ -77,24 +89,36 @@ public class PolicyConfigGenerator : ISourceGenerator
             }
         }
 
-        // Update configs with HasDerivedClasses flag
+        // Update configs with HasDerivedClasses flag and build lookup
+        var configLookup = new Dictionary<string, ConfigInfo>();
         for (int i = 0; i < configsToGenerate.Count; i++)
         {
             var config = configsToGenerate[i];
             if (typesWithDerived.Contains(config.ClassName))
             {
-                configsToGenerate[i] = config.WithHasDerivedClasses(true);
+                config = config.WithHasDerivedClasses(true);
+                configsToGenerate[i] = config;
             }
+            configLookup[config.ClassName] = config;
         }
 
-        // Generate compiled config classes
+        // Build interface implementations lookup for extractor generation
+        var interfaceImplLookup = interfaceImplementations
+            .ToDictionary(
+                kvp => kvp.Key.Name,
+                kvp => kvp.Value,
+                StringComparer.Ordinal);
+
+        // Generate compiled config classes with Extract() methods
         foreach (var config in configsToGenerate)
         {
             var source = configEmitter.Emit(config);
+            var extractorSource = extractorEmitter.Emit(config, configLookup, interfaceImplLookup);
             context.AddSource($"Configs.{config.ClassName}.g.cs", SourceText.From(source, Encoding.UTF8));
+            context.AddSource($"Extractors.{config.ClassName}.g.cs", SourceText.From(extractorSource, Encoding.UTF8));
         }
 
-        // Generate union types for interfaces with multiple implementations
+        // Generate union types with ExtractUnion() methods
         foreach (var kvp in interfaceImplementations)
         {
             var interfaceSymbol = kvp.Key;
@@ -111,9 +135,6 @@ public class PolicyConfigGenerator : ISourceGenerator
     {
         var results = new List<INamedTypeSymbol>();
 
-        // Only search in referenced assemblies, not the current compilation.
-        // This prevents duplicate generation when a project references another project
-        // that already has compiled configs generated.
         foreach (var reference in compilation.References)
         {
             var assemblySymbol = compilation.GetAssemblyOrModuleSymbol(reference) as IAssemblySymbol;
@@ -122,9 +143,7 @@ public class PolicyConfigGenerator : ISourceGenerator
                 continue;
             }
 
-            // Scan the global namespace recursively
-            var globalNamespace = assemblySymbol.GlobalNamespace;
-            FindConfigTypesInNamespace(globalNamespace, results);
+            FindConfigTypesInNamespace(assemblySymbol.GlobalNamespace, results);
         }
 
         return results;
@@ -133,8 +152,7 @@ public class PolicyConfigGenerator : ISourceGenerator
     private static void FindConfigTypesInNamespace(INamespaceSymbol namespaceSymbol, List<INamedTypeSymbol> results)
     {
         var ns = namespaceSymbol.ToDisplayString();
-        
-        // Only process namespaces under Authoring
+
         if (ns.StartsWith(AuthoringNamespace, StringComparison.Ordinal))
         {
             foreach (var type in namespaceSymbol.GetTypeMembers())
@@ -144,7 +162,6 @@ public class PolicyConfigGenerator : ISourceGenerator
                     results.Add(type);
                 }
 
-                // Check nested types
                 foreach (var nestedType in type.GetTypeMembers())
                 {
                     if (IsConfigType(nestedType))
@@ -155,64 +172,33 @@ public class PolicyConfigGenerator : ISourceGenerator
             }
         }
 
-        // Recurse into child namespaces
         foreach (var childNamespace in namespaceSymbol.GetNamespaceMembers())
         {
             FindConfigTypesInNamespace(childNamespace, results);
         }
     }
 
-    /// <summary>
-    /// Determines if a type is a config type that should have a compiled config generated.
-    /// A config type is a public class or record in the Authoring namespace.
-    /// </summary>
     private static bool IsConfigType(INamedTypeSymbol type)
     {
-        // Must be a public class or record
         if (type.DeclaredAccessibility != Accessibility.Public)
-        {
             return false;
-        }
 
         if (type.TypeKind != TypeKind.Class)
-        {
             return false;
-        }
 
-        // Skip static classes
         if (type.IsStatic)
-        {
             return false;
-        }
 
-        // Skip interfaces, enums, delegates
-        if (type.TypeKind == TypeKind.Interface || 
-            type.TypeKind == TypeKind.Enum || 
-            type.TypeKind == TypeKind.Delegate)
-        {
-            return false;
-        }
-
-        // Must be in the Authoring namespace
         var ns = type.ContainingNamespace?.ToDisplayString() ?? string.Empty;
         if (!ns.StartsWith(AuthoringNamespace, StringComparison.Ordinal))
-        {
             return false;
-        }
 
-        // Skip attribute classes
         if (type.Name.EndsWith("Attribute", StringComparison.Ordinal))
-        {
             return false;
-        }
 
-        // Skip special types like ExpressionValue, Expression, etc.
         var name = type.Name;
-        if (name == "Expression" || 
-            name.StartsWith("ExpressionValue", StringComparison.Ordinal))
-        {
+        if (name == "Expression" || name.StartsWith("ExpressionValue", StringComparison.Ordinal))
             return false;
-        }
 
         return true;
     }

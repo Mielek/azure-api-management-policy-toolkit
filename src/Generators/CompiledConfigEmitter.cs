@@ -6,7 +6,8 @@ using System.Text;
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Generators;
 
 /// <summary>
-/// Emits the compiled config class source code.
+/// Emits compiled config class source code (properties only).
+/// Extract methods are emitted separately by ConfigExtractorEmitter.
 /// </summary>
 internal class CompiledConfigEmitter
 {
@@ -22,29 +23,22 @@ internal class CompiledConfigEmitter
         sb.AppendLine();
         sb.AppendLine($"namespace {CompiledConfigNamespace};");
         sb.AppendLine();
-        sb.AppendLine("/// <summary>");
-        sb.AppendLine($"/// Compiled config class for <see cref=\"{config.Namespace}.{config.ClassName}\"/>.");
-        sb.AppendLine("/// </summary>");
         sb.AppendLine($"[global::System.CodeDom.Compiler.GeneratedCodeAttribute(\"PolicyConfigGenerator\", \"1.0.0\")]");
-        
-        // Determine class modifiers:
-        // - abstract if source is abstract
-        // - sealed if not abstract AND has no derived classes
-        // - neither if not abstract but has derived classes
+
         string classModifiers;
         if (config.IsAbstract)
         {
-            classModifiers = "public abstract class";
+            classModifiers = "public abstract partial class";
         }
         else if (config.HasDerivedClasses)
         {
-            classModifiers = "public class";
+            classModifiers = "public partial class";
         }
         else
         {
-            classModifiers = "public sealed class";
+            classModifiers = "public sealed partial class";
         }
-        
+
         var baseClass = config.BaseTypeName is not null ? $" : {config.BaseTypeName}" : "";
         sb.AppendLine($"{classModifiers} {config.ClassName}{baseClass}");
         sb.AppendLine("{");
@@ -63,12 +57,7 @@ internal class CompiledConfigEmitter
     {
         var wrappedType = WrapType(prop);
         var requiredModifier = prop.IsRequired ? "required " : "";
-
-        sb.AppendLine($"    /// <summary>");
-        sb.AppendLine($"    /// XML name: {prop.XmlName}");
-        sb.AppendLine($"    /// </summary>");
         sb.AppendLine($"    public {requiredModifier}{wrappedType} {prop.Name} {{ get; init; }}");
-        sb.AppendLine();
     }
 
     private string WrapType(PropertyInfo prop)

@@ -11,9 +11,9 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <!-- Disable non-incremental generator warning since we're now using incremental -->
         <!-- RS1041: .NET 8.0 target framework warning - safe to suppress for internal generators -->
-        <NoWarn>$(NoWarn);RS1035;RS1042;RS1041</NoWarn>
+        <!-- RS1042: Generator performance warning - suppressed for generator-specific context usage -->
+        <NoWarn>$(NoWarn);RS1041;RS1042</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
