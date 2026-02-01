@@ -29,8 +29,8 @@ public class ValidateHeadersCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("validate-headers");
 
-        element.Add(new XAttribute("specified-header-action", config.SpecifiedHeaderAction.ToXmlValue()));
-        element.Add(new XAttribute("unspecified-header-action", config.UnspecifiedHeaderAction.ToXmlValue()));
+        element.AddAttribute("specified-header-action", config.SpecifiedHeaderAction);
+        element.AddAttribute("unspecified-header-action", config.UnspecifiedHeaderAction);
         element.AddOptionalAttribute("errors-variable-name", config.ErrorsVariableName);
 
         if (config.Headers is { } headers)
@@ -38,8 +38,8 @@ public class ValidateHeadersCompiler : IMethodPolicyHandler
             foreach (var header in headers)
             {
                 XElement headerElement = new("header");
-                headerElement.Add(new XAttribute("name", header.Name));
-                headerElement.Add(new XAttribute("action", header.Action.ToXmlValue()));
+                headerElement.AddAttribute("name", header.Name);
+                headerElement.AddAttribute("action", header.Action);
                 element.Add(headerElement);
             }
         }

@@ -29,7 +29,7 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("invoke-darp-binding");
 
-        element.Add(new XAttribute("name", config.Name.ToXmlValue()));
+        element.AddAttribute("name", config.Name);
         element.AddOptionalAttribute("operation", config.Operation);
         element.AddOptionalAttribute("ignore-error", config.IgnoreError);
         element.AddOptionalAttribute("response-variable-name", config.ResponseVariableName);
@@ -43,17 +43,14 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
             foreach (var item in metaData)
             {
                 var itemElement = new XElement("item");
-                itemElement.Add(new XAttribute("key", item.Key));
+                itemElement.AddAttribute("key", item.Key);
                 itemElement.Value = item.Value.ToXmlValue();
                 metadataElement.Add(itemElement);
             }
             element.Add(metadataElement);
         }
 
-        if (config.Data is { } data)
-        {
-            element.Add(new XElement("data", data.ToXmlValue()));
-        }
+        element.AddOptionalElement("data", config.Data);
 
         context.AddPolicy(element);
     }

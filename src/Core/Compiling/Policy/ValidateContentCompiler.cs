@@ -29,9 +29,9 @@ public class ValidateContentCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("validate-content");
 
-        element.Add(new XAttribute("unspecified-content-type-action", config.UnspecifiedContentTypeAction.ToXmlValue()));
-        element.Add(new XAttribute("max-size", config.MaxSize.ToXmlValue()));
-        element.Add(new XAttribute("size-exceeded-action", config.SizeExceededAction.ToXmlValue()));
+        element.AddAttribute("unspecified-content-type-action", config.UnspecifiedContentTypeAction);
+        element.AddAttribute("max-size", config.MaxSize);
+        element.AddAttribute("size-exceeded-action", config.SizeExceededAction);
         element.AddOptionalAttribute("errors-variable-name", config.ErrorsVariableName);
 
         if (config.ContentTypeMap is { } contentTypeMap)
@@ -58,7 +58,7 @@ public class ValidateContentCompiler : IMethodPolicyHandler
             foreach (var typeMap in types)
             {
                 XElement typeElement = new("type");
-                typeElement.Add(new XAttribute("to", typeMap.To));
+                typeElement.AddAttribute("to", typeMap.To);
                 typeElement.AddOptionalAttribute("from", typeMap.From);
                 typeElement.AddOptionalAttribute("when", typeMap.When);
 
@@ -74,20 +74,20 @@ public class ValidateContentCompiler : IMethodPolicyHandler
         foreach (var validateContent in contents)
         {
             XElement contentElement = new("content");
-            contentElement.Add(new XAttribute("validate-as", validateContent.ValidateAs));
-            contentElement.Add(new XAttribute("action", validateContent.Action.ToXmlValue()));
+            contentElement.AddAttribute("validate-as", validateContent.ValidateAs);
+            contentElement.AddAttribute("action", validateContent.Action);
             contentElement.AddOptionalAttribute("type", validateContent.Type);
             contentElement.AddOptionalAttribute("schema-id", validateContent.SchemaId);
             contentElement.AddOptionalAttribute("schema-ref", validateContent.SchemaRef);
             
             if (validateContent.AllowAdditionalProperties is { } allowAdditional)
             {
-                contentElement.Add(new XAttribute("allow-additional-properties", allowAdditional.ToString().ToLowerInvariant()));
+                contentElement.AddAttribute("allow-additional-properties", allowAdditional.ToString().ToLowerInvariant());
             }
             
             if (validateContent.CaseInsensitivePropertyNames is { } caseInsensitive)
             {
-                contentElement.Add(new XAttribute("case-insensitive-property-names", caseInsensitive.ToString().ToLowerInvariant()));
+                contentElement.AddAttribute("case-insensitive-property-names", caseInsensitive.ToString().ToLowerInvariant());
             }
 
             parentElement.Add(contentElement);

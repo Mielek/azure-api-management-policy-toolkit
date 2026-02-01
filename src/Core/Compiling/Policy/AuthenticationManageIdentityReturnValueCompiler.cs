@@ -22,8 +22,8 @@ public class AuthenticationManageIdentityReturnValueCompiler : IReturnValueMetho
             resourceResult.ReportAll(context);
             return;
         }
-        policy.Add(new XAttribute("resource", resourceResult.Value));
-        policy.Add(new XAttribute("output-token-variable-name", variableName));
+        policy.AddAttribute("resource", resourceResult.Value);
+        policy.AddAttribute("output-token-variable-name", variableName);
 
         context.AddPolicy(policy);
     }

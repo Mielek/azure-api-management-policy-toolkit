@@ -31,7 +31,7 @@ public class JsonToXmlCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("json-to-xml");
 
-        element.Add(new XAttribute("apply", config.Apply.ToXmlValue()));
+        element.AddAttribute("apply", config.Apply);
         element.AddOptionalAttribute("consider-accept-header", config.ConsiderAcceptHeader);
         element.AddOptionalAttribute("parse-date", config.ParseDate);
         element.AddOptionalAttribute("namespace-separator", config.NamespaceSeparator);

@@ -31,7 +31,7 @@ public class SetStatusCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var statusElement = new XElement("set-status");
         
-        statusElement.Add(new XAttribute("code", config.Code.ToXmlValue()));
+        statusElement.AddAttribute("code", config.Code);
         statusElement.AddOptionalAttribute("reason", config.Reason);
 
         context.AddPolicy(statusElement);
@@ -40,7 +40,7 @@ public class SetStatusCompiler : IMethodPolicyHandler
     public static void HandleStatus(XElement element, CompiledConfigs.StatusConfig status)
     {
         var statusElement = new XElement("set-status");
-        statusElement.Add(new XAttribute("code", status.Code.ToXmlValue()));
+        statusElement.AddAttribute("code", status.Code);
         statusElement.AddOptionalAttribute("reason", status.Reason);
         
         element.Add(statusElement);

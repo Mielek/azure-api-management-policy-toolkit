@@ -31,8 +31,8 @@ public class TraceCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("trace");
 
-        element.Add(new XAttribute("source", config.Source.ToXmlValue()));
-        element.Add(new XElement("message", config.Message.ToXmlValue()));
+        element.AddAttribute("source", config.Source);
+        element.AddElement("message", config.Message);
         element.AddOptionalAttribute("severity", config.Severity);
 
         if (config.Metadata is { } metadata)
@@ -40,8 +40,8 @@ public class TraceCompiler : IMethodPolicyHandler
             foreach (var data in metadata)
             {
                 var metadataElement = new XElement("metadata");
-                metadataElement.Add(new XAttribute("name", data.Name.ToXmlValue()));
-                metadataElement.Add(new XAttribute("value", data.Value.ToXmlValue()));
+                metadataElement.AddAttribute("name", data.Name);
+                metadataElement.AddAttribute("value", data.Value);
                 element.Add(metadataElement);
             }
         }

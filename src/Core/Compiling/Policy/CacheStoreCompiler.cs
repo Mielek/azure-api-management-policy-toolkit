@@ -35,7 +35,7 @@ public class CacheStoreCompiler : IMethodPolicyHandler
             durationResult.ReportAll(context);
             return;
         }
-        element.Add(new XAttribute("duration", durationResult.Value));
+        element.AddAttribute("duration", durationResult.Value);
 
         if (arguments.Count == 2)
         {
@@ -45,7 +45,7 @@ public class CacheStoreCompiler : IMethodPolicyHandler
                 cacheResponseResult.ReportAll(context);
                 return;
             }
-            element.Add(new XAttribute("cache-response", cacheResponseResult.Value));
+            element.AddAttribute("cache-response", cacheResponseResult.Value);
         }
 
         context.AddPolicy(element);

@@ -29,11 +29,11 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("llm-content-safety");
 
-        element.Add(new XAttribute("backend-id", config.BackendId.ToXmlValue()));
+        element.AddAttribute("backend-id", config.BackendId);
 
         if (config.ShieldPrompt is { } shieldPrompt)
         {
-            element.Add(new XAttribute("shield-prompt", shieldPrompt.ToXmlValue()));
+            element.AddAttribute("shield-prompt", shieldPrompt);
         }
 
         if (config.Categories is { } categories)
@@ -55,7 +55,7 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
 
         if (categories.OutputType is { } outputType)
         {
-            categoriesElement.Add(new XAttribute("output-type", outputType.ToXmlValue()));
+            categoriesElement.AddAttribute("output-type", outputType);
         }
 
         if (categories.Categories is { } categoryList)
@@ -63,8 +63,8 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
             foreach (var category in categoryList)
             {
                 var categoryElement = new XElement("category");
-                categoryElement.Add(new XAttribute("name", category.Name.ToXmlValue()));
-                categoryElement.Add(new XAttribute("threshold", category.Threshold.ToXmlValue()));
+                categoryElement.AddAttribute("name", category.Name);
+                categoryElement.AddAttribute("threshold", category.Threshold);
                 categoriesElement.Add(categoryElement);
             }
         }
@@ -78,7 +78,7 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
 
         foreach (var id in blockLists.Ids)
         {
-            blockListsElement.Add(new XElement("id", id.ToXmlValue()));
+            blockListsElement.AddElement("id", id);
         }
 
         element.Add(blockListsElement);

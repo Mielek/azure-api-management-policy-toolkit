@@ -31,9 +31,9 @@ public class CacheStoreValueCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("cache-store-value");
 
-        element.Add(new XAttribute("key", config.Key.ToXmlValue()));
-        element.Add(new XAttribute("value", config.Value.ToXmlValue()));
-        element.Add(new XAttribute("duration", config.Duration.ToXmlValue()));
+        element.AddAttribute("key", config.Key);
+        element.AddAttribute("value", config.Value);
+        element.AddAttribute("duration", config.Duration);
         element.AddOptionalAttribute("caching-type", config.CachingType);
 
         context.AddPolicy(element);

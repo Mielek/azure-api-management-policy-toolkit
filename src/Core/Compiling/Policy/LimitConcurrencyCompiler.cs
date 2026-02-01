@@ -69,8 +69,8 @@ public class LimitConcurrencyCompiler : IMethodPolicyHandler
 
         XElement element = new("limit-concurrency");
 
-        element.Add(new XAttribute("key", config.Key.ToXmlValue()));
-        element.Add(new XAttribute("max-count", config.MaxCount));
+        element.AddAttribute("key", config.Key);
+        element.AddAttribute("max-count", config.MaxCount);
 
         var subContext = new DocumentCompilationContext(context, element);
         _blockCompiler.Value.Compile(subContext, lambda.Block);

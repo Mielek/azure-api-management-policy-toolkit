@@ -31,9 +31,9 @@ public class GetAuthorizationContextCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("get-authorization-context");
 
-        element.Add(new XAttribute("provider-id", config.ProviderId.ToXmlValue()));
-        element.Add(new XAttribute("authorization-id", config.AuthorizationId.ToXmlValue()));
-        element.Add(new XAttribute("context-variable-name", config.ContextVariableName.ToXmlValue()));
+        element.AddAttribute("provider-id", config.ProviderId);
+        element.AddAttribute("authorization-id", config.AuthorizationId);
+        element.AddAttribute("context-variable-name", config.ContextVariableName);
         element.AddOptionalAttribute("identity-type", config.IdentityType);
         element.AddOptionalAttribute("identity", config.Identity);
         element.AddOptionalAttribute("ignore-error", config.IgnoreError);

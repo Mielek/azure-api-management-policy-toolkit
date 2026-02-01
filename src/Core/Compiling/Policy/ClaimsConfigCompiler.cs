@@ -15,7 +15,7 @@ public static class ClaimsConfigCompiler
         foreach (var claim in claims)
         {
             XElement claimElement = new("claim");
-            claimElement.Add(new XAttribute("name", claim.Name));
+            claimElement.AddAttribute("name", claim.Name);
             claimElement.AddOptionalAttribute("match", claim.Match);
             claimElement.AddOptionalAttribute("separator", claim.Separator);
 
@@ -23,7 +23,7 @@ public static class ClaimsConfigCompiler
             {
                 foreach (var value in values)
                 {
-                    claimElement.Add(new XElement("value", value));
+                    claimElement.AddElement("value", value);
                 }
             }
 

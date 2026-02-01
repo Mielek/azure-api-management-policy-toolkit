@@ -56,8 +56,8 @@ public abstract class BaseSetQueryParameterCompiler : IMethodPolicyHandler
             nameResult.ReportAll(context);
             return;
         }
-        element.Add(new XAttribute("name", nameResult.Value));
-        element.Add(new XAttribute("exists-action", _type));
+        element.AddAttribute("name", nameResult.Value);
+        element.AddAttribute("exists-action", _type);
 
         for (int i = 1; i < arguments.Count; i++)
         {
@@ -67,7 +67,7 @@ public abstract class BaseSetQueryParameterCompiler : IMethodPolicyHandler
                 valueResult.ReportAll(context);
                 return;
             }
-            element.Add(new XElement("value", valueResult.Value));
+            element.AddElement("value", valueResult.Value);
         }
 
         context.AddPolicy(element);

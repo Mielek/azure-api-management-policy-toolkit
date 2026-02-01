@@ -48,7 +48,7 @@ public abstract class BaseSemanticCacheStoreCompiler : IMethodPolicyHandler
             durationResult.ReportAll(context);
             return;
         }
-        element.Add(new XAttribute("duration", durationResult.Value));
+        element.AddAttribute("duration", durationResult.Value);
         context.AddPolicy(element);
     }
 }

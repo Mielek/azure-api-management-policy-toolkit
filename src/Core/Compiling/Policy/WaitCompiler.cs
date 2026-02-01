@@ -62,7 +62,7 @@ public class WaitCompiler : IMethodPolicyHandler
                 valueResult.ReportAll(context);
                 return;
             }
-            element.Add(new XAttribute("for", valueResult.Value));
+            element.AddAttribute("for", valueResult.Value);
         }
 
         var subContext = new DocumentCompilationContext(context, element);

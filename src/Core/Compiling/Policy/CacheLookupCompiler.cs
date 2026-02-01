@@ -31,8 +31,8 @@ public class CacheLookupCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("cache-lookup");
 
-        element.Add(new XAttribute("vary-by-developer", config.VaryByDeveloper.ToXmlValue()));
-        element.Add(new XAttribute("vary-by-developer-groups", config.VaryByDeveloperGroups.ToXmlValue()));
+        element.AddAttribute("vary-by-developer", config.VaryByDeveloper);
+        element.AddAttribute("vary-by-developer-groups", config.VaryByDeveloperGroups);
         element.AddOptionalAttribute("caching-type", config.CachingType);
         element.AddOptionalAttribute("downstream-caching-type", config.DownstreamCachingType);
         element.AddOptionalAttribute("must-revalidate", config.MustRevalidate);
@@ -42,7 +42,7 @@ public class CacheLookupCompiler : IMethodPolicyHandler
         {
             foreach (var header in varyByHeaders)
             {
-                element.Add(new XElement("vary-by-header", header.ToXmlValue()));
+                element.AddElement("vary-by-header", header);
             }
         }
 
@@ -50,7 +50,7 @@ public class CacheLookupCompiler : IMethodPolicyHandler
         {
             foreach (var queryParam in varyByQueryParameters)
             {
-                element.Add(new XElement("vary-by-query-parameter", queryParam.ToXmlValue()));
+                element.AddElement("vary-by-query-parameter", queryParam);
             }
         }
 

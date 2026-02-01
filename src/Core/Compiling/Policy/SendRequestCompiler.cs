@@ -29,21 +29,14 @@ public class SendRequestCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("send-request");
 
-        element.Add(new XAttribute("response-variable-name", config.ResponseVariableName));
+        element.AddAttribute("response-variable-name", config.ResponseVariableName);
 
         element.AddOptionalAttribute("mode", config.Mode);
         element.AddOptionalAttribute("timeout", config.Timeout);
         element.AddOptionalAttribute("ignore-error", config.IgnoreError);
 
-        if (config.Url is { } url)
-        {
-            element.Add(new XElement("set-url", url.ToXmlValue()));
-        }
-
-        if (config.Method is { } method)
-        {
-            element.Add(new XElement("set-method", method));
-        }
+        element.AddOptionalElement("set-url", config.Url);
+        element.AddOptionalElement("set-method", config.Method);
 
         if (config.Headers is { } headers)
         {

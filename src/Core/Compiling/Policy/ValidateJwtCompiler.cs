@@ -37,19 +37,19 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
 
         if (config.HeaderName is { } headerName)
         {
-            element.Add(new XAttribute("header-name", headerName.ToXmlValue()));
+            element.AddAttribute("header-name", headerName);
             headerNameAdded = true;
         }
 
         if (config.QueryParameterName is { } queryParam)
         {
-            element.Add(new XAttribute("query-parameter-name", queryParam.ToXmlValue()));
+            element.AddAttribute("query-parameter-name", queryParam);
             queryParamAdded = true;
         }
 
         if (config.TokenValue is { } tokenValue)
         {
-            element.Add(new XAttribute("token-value", tokenValue.ToXmlValue()));
+            element.AddAttribute("token-value", tokenValue);
             tokenValueAdded = true;
         }
 
@@ -112,7 +112,7 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
         foreach (var openIdConfig in openIdConfigs)
         {
             var openIdElement = new XElement("openid-config");
-            openIdElement.Add(new XAttribute("url", openIdConfig.Url));
+            openIdElement.AddAttribute("url", openIdConfig.Url);
             element.Add(openIdElement);
         }
     }
@@ -131,11 +131,11 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
                     keyElement.Value = base64Key.Value;
                     break;
                 case CompiledConfigs.CertificateKeyConfig certKey:
-                    keyElement.Add(new XAttribute("certificate-id", certKey.CertificateId));
+                    keyElement.AddAttribute("certificate-id", certKey.CertificateId);
                     break;
                 case CompiledConfigs.AsymmetricKeyConfig asymKey:
-                    keyElement.Add(new XAttribute("n", asymKey.Modulus));
-                    keyElement.Add(new XAttribute("e", asymKey.Exponent));
+                    keyElement.AddAttribute("n", asymKey.Modulus);
+                    keyElement.AddAttribute("e", asymKey.Exponent);
                     break;
             }
 
@@ -154,7 +154,7 @@ public class ValidateJwtCompiler : IMethodPolicyHandler
         var listElement = new XElement(listName);
         foreach (var value in values)
         {
-            listElement.Add(new XElement(elementName, value.ToXmlValue()));
+            listElement.AddElement(elementName, value);
         }
 
         element.Add(listElement);

@@ -46,7 +46,7 @@ public abstract class BaseEmitTokenMetricCompiler : IMethodPolicyHandler
         foreach (var dimConfig in config.Dimensions)
         {
             var dimensionElement = new XElement("dimension");
-            dimensionElement.Add(new XAttribute("name", dimConfig.Name));
+            dimensionElement.AddAttribute("name", dimConfig.Name);
             dimensionElement.AddOptionalAttribute("value", dimConfig.Value);
             element.Add(dimensionElement);
         }

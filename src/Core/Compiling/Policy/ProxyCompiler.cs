@@ -36,7 +36,7 @@ public class ProxyCompiler : IMethodPolicyHandler
     public static XElement HandleProxy(CompiledConfigs.ProxyConfig config)
     {
         XElement element = new("proxy");
-        element.Add(new XAttribute("url", config.Url.ToXmlValue()));
+        element.AddAttribute("url", config.Url);
         element.AddOptionalAttribute("username", config.Username);
         element.AddOptionalAttribute("password", config.Password);
 

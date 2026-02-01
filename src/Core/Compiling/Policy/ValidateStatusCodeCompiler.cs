@@ -26,7 +26,7 @@ public class ValidateStatusCodeCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("validate-status-code");
 
-        element.Add(new XAttribute("unspecified-status-code-action", config.UnspecifiedStatusCodeAction.ToXmlValue()));
+        element.AddAttribute("unspecified-status-code-action", config.UnspecifiedStatusCodeAction);
         element.AddOptionalAttribute("error-variable-name", config.ErrorVariableName);
 
         if (config.StatusCodes is { } statusCodes)
@@ -34,8 +34,8 @@ public class ValidateStatusCodeCompiler : IMethodPolicyHandler
             foreach (var statusCode in statusCodes)
             {
                 var statusCodeElement = new XElement("status-code");
-                statusCodeElement.Add(new XAttribute("code", statusCode.Code.ToXmlValue()));
-                statusCodeElement.Add(new XAttribute("action", statusCode.Action.ToXmlValue()));
+                statusCodeElement.AddAttribute("code", statusCode.Code);
+                statusCodeElement.AddAttribute("action", statusCode.Action);
                 element.Add(statusCodeElement);
             }
         }

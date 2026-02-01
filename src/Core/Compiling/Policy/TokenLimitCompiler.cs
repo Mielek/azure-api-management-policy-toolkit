@@ -45,8 +45,8 @@ public abstract class BaseTokenLimitCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement(_policyName);
 
-        element.Add(new XAttribute("counter-key", config.CounterKey.ToXmlValue()));
-        element.Add(new XAttribute("estimate-prompt-token", config.EstimatePromptToken.ToXmlValue()));
+        element.AddAttribute("counter-key", config.CounterKey);
+        element.AddAttribute("estimate-prompt-token", config.EstimatePromptToken);
 
         var tokensPerMinuteAdded = config.TokensPerMinute is not null;
         var quotaAdded = config.TokenQuota is not null;

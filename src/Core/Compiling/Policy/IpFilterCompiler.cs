@@ -31,14 +31,14 @@ public class IpFilterCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("ip-filter");
 
-        element.Add(new XAttribute("action", config.Action.ToXmlValue()));
+        element.AddAttribute("action", config.Action);
 
         bool atLeastOneAddress = false;
         if (config.Addresses is { } addresses)
         {
             foreach (var address in addresses)
             {
-                element.Add(new XElement("address", address.ToXmlValue()));
+                element.AddElement("address", address);
                 atLeastOneAddress = true;
             }
         }
@@ -49,8 +49,8 @@ public class IpFilterCompiler : IMethodPolicyHandler
             foreach (var rangeConfig in addressRanges)
             {
                 var rangeElement = new XElement("address-range");
-                rangeElement.Add(new XAttribute("from", rangeConfig.From.ToXmlValue()));
-                rangeElement.Add(new XAttribute("to", rangeConfig.To.ToXmlValue()));
+                rangeElement.AddAttribute("from", rangeConfig.From);
+                rangeElement.AddAttribute("to", rangeConfig.To);
                 element.Add(rangeElement);
                 atLeastOneRange = true;
             }

@@ -31,7 +31,7 @@ public class PublishToDarpCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("publish-to-darp");
 
-        element.Add(new XAttribute("topic", config.Topic.ToXmlValue()));
+        element.AddAttribute("topic", config.Topic);
         element.Value = config.Content.ToXmlValue();
         element.AddOptionalAttribute("pub-sub-name", config.PubSubName);
         element.AddOptionalAttribute("ignore-error", config.IgnoreError);

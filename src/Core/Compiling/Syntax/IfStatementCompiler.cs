@@ -70,7 +70,7 @@ public class IfStatementCompiler : ISyntaxCompiler
                 continue;
             }
             
-            section.Add(new XAttribute("condition", conditionResult.Value));
+            section.AddAttribute("condition", conditionResult.Value);
             choose.Add(section);
 
             nextIf = currentIf.Else?.Statement as IfStatementSyntax;

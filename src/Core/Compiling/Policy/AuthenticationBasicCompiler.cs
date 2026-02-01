@@ -46,8 +46,8 @@ public class AuthenticationBasicCompiler : IMethodPolicyHandler
         Configs.BasicAuthenticationConfig config)
     {
         XElement basicElement = new("authentication-basic");
-        basicElement.Add(new XAttribute("username", config.Username.ToXmlValue()));
-        basicElement.Add(new XAttribute("password", config.Password.ToXmlValue()));
+        basicElement.AddAttribute("username", config.Username);
+        basicElement.AddAttribute("password", config.Password);
         element.Add(basicElement);
     }
 }

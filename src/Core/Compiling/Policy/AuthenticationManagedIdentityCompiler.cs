@@ -31,7 +31,7 @@ public class AuthenticationManagedIdentityCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("authentication-managed-identity");
 
-        element.Add(new XAttribute("resource", config.Resource.ToXmlValue()));
+        element.AddAttribute("resource", config.Resource);
         element.AddOptionalAttribute("client-id", config.ClientId);
         element.AddOptionalAttribute("output-token-variable-name", config.OutputTokenVariableName);
         element.AddOptionalAttribute("ignore-error", config.IgnoreError);
@@ -44,7 +44,7 @@ public class AuthenticationManagedIdentityCompiler : IMethodPolicyHandler
         Configs.ManagedIdentityAuthenticationConfig config)
     {
         XElement certElement = new("authentication-managed-identity");
-        certElement.Add(new XAttribute("resource", config.Resource.ToXmlValue()));
+        certElement.AddAttribute("resource", config.Resource);
         certElement.AddOptionalAttribute("client-id", config.ClientId);
         certElement.AddOptionalAttribute("output-token-variable-name", config.OutputTokenVariableName);
         certElement.AddOptionalAttribute("ignore-error", config.IgnoreError);

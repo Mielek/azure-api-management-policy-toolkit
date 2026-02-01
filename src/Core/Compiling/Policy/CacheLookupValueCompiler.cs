@@ -31,8 +31,8 @@ public class CacheLookupValueCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("cache-lookup-value");
 
-        element.Add(new XAttribute("key", config.Key.ToXmlValue()));
-        element.Add(new XAttribute("variable-name", config.VariableName.ToXmlValue()));
+        element.AddAttribute("key", config.Key);
+        element.AddAttribute("variable-name", config.VariableName);
         element.AddOptionalAttribute("caching-type", config.CachingType);
         element.AddOptionalAttribute("default-value", config.DefaultValue);
 

@@ -34,7 +34,7 @@ public class RewriteUriCompiler : IMethodPolicyHandler
             templateResult.ReportAll(context);
             return;
         }
-        element.Add(new XAttribute("template", templateResult.Value));
+        element.AddAttribute("template", templateResult.Value);
 
         if (node.ArgumentList.Arguments.Count == 2)
         {
@@ -44,7 +44,7 @@ public class RewriteUriCompiler : IMethodPolicyHandler
                 copyUnmatchedParamsResult.ReportAll(context);
                 return;
             }
-            element.Add(new XAttribute("copy-unmatched-params", copyUnmatchedParamsResult.Value));
+            element.AddAttribute("copy-unmatched-params", copyUnmatchedParamsResult.Value);
         }
 
         context.AddPolicy(element);

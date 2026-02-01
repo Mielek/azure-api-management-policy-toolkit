@@ -45,9 +45,9 @@ public abstract class BaseSemanticCacheLookupCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement(_policyName);
 
-        element.Add(new XAttribute("score-threshold", config.ScoreThreshold.ToXmlValue()));
-        element.Add(new XAttribute("embeddings-backend-id", config.EmbeddingsBackendId.ToXmlValue()));
-        element.Add(new XAttribute("embeddings-backend-auth", config.EmbeddingsBackendAuth.ToXmlValue()));
+        element.AddAttribute("score-threshold", config.ScoreThreshold);
+        element.AddAttribute("embeddings-backend-id", config.EmbeddingsBackendId);
+        element.AddAttribute("embeddings-backend-auth", config.EmbeddingsBackendAuth);
         element.AddOptionalAttribute("ignore-system-messages", config.IgnoreSystemMessages);
         element.AddOptionalAttribute("max-message-count", config.MaxMessageCount);
 
@@ -55,7 +55,7 @@ public abstract class BaseSemanticCacheLookupCompiler : IMethodPolicyHandler
         {
             foreach (var varyBy in config.VaryBy)
             {
-                element.Add(new XElement("vary-by", varyBy.ToXmlValue()));
+                element.AddElement("vary-by", varyBy);
             }
         }
 

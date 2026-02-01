@@ -29,14 +29,14 @@ public class EmitMetricCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("emit-metric");
 
-        element.Add(new XAttribute("name", config.Name));
+        element.AddAttribute("name", config.Name);
         element.AddOptionalAttribute("value", config.Value);
         element.AddOptionalAttribute("namespace", config.Namespace);
 
         foreach (var dimConfig in config.Dimensions)
         {
             var dimensionElement = new XElement("dimension");
-            dimensionElement.Add(new XAttribute("name", dimConfig.Name));
+            dimensionElement.AddAttribute("name", dimConfig.Name);
             dimensionElement.AddOptionalAttribute("value", dimConfig.Value);
             element.Add(dimensionElement);
         }

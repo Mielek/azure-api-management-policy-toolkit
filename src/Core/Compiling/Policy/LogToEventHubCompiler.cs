@@ -31,7 +31,7 @@ public class LogToEventHubCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("log-to-eventhub");
 
-        element.Add(new XAttribute("logger-id", config.LoggerId.ToXmlValue()));
+        element.AddAttribute("logger-id", config.LoggerId);
 
         var addedPartitionKey = config.PartitionKey is not null;
         var addedPartitionId = config.PartitionId is not null;

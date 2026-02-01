@@ -36,13 +36,13 @@ public class QuotaCompiler : IMethodPolicyHandler
 
         if (config.Calls is { } calls)
         {
-            element.Add(new XAttribute("calls", calls));
+            element.AddAttribute("calls", calls);
             isCallsAdded = true;
         }
 
         if (config.Bandwidth is { } bandwidth)
         {
-            element.Add(new XAttribute("bandwidth", bandwidth));
+            element.AddAttribute("bandwidth", bandwidth);
             isBandwidthAdded = true;
         }
 
@@ -58,7 +58,7 @@ public class QuotaCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.Add(new XAttribute("renewal-period", config.RenewalPeriod));
+        element.AddAttribute("renewal-period", config.RenewalPeriod);
 
         if (config.Apis is { } apis)
         {
@@ -103,13 +103,13 @@ public class QuotaCompiler : IMethodPolicyHandler
 
         if (entity.Name is { } name)
         {
-            element.Add(new XAttribute("name", name));
+            element.AddAttribute("name", name);
             isNameAdded = true;
         }
 
         if (entity.Id is { } id)
         {
-            element.Add(new XAttribute("id", id));
+            element.AddAttribute("id", id);
             isIdAdded = true;
         }
 
@@ -130,13 +130,13 @@ public class QuotaCompiler : IMethodPolicyHandler
 
         if (entity.Calls is { } calls)
         {
-            element.Add(new XAttribute("calls", calls));
+            element.AddAttribute("calls", calls);
             isCallsAdded = true;
         }
 
         if (entity.Bandwidth is { } bandwidth)
         {
-            element.Add(new XAttribute("bandwidth", bandwidth));
+            element.AddAttribute("bandwidth", bandwidth);
             isBandwidthAdded = true;
         }
 

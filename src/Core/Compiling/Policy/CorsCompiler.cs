@@ -47,7 +47,7 @@ public class CorsCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.Add(new XElement("allowed-origins", origins));
+        element.AddElement("allowed-origins", origins);
 
         var headers = config.AllowedHeaders
             .Select(header => new XElement("header", header.ToXmlValue()))
@@ -63,7 +63,7 @@ public class CorsCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.Add(new XElement("allowed-headers", headers));
+        element.AddElement("allowed-headers", headers);
 
         if (config.AllowedMethods is { } allowedMethods)
         {
@@ -102,7 +102,7 @@ public class CorsCompiler : IMethodPolicyHandler
                 ));
             }
 
-            element.Add(new XElement("expose-headers", exposeHeadersElements));
+            element.AddElement("expose-headers", exposeHeadersElements);
         }
 
         context.AddPolicy(element);

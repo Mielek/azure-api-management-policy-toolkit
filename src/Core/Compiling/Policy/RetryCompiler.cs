@@ -69,8 +69,8 @@ public class RetryCompiler : IMethodPolicyHandler
 
         XElement element = new("retry");
         
-        element.Add(new XAttribute("condition", config.Condition.ToXmlValue()));
-        element.Add(new XAttribute("count", config.Count.ToXmlValue()));
+        element.AddAttribute("condition", config.Condition);
+        element.AddAttribute("count", config.Count);
         element.AddOptionalAttribute("interval", config.Interval);
         element.AddOptionalAttribute("max-interval", config.MaxInterval);
         element.AddOptionalAttribute("delta", config.Delta);

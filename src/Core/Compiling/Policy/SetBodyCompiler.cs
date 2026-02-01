@@ -60,7 +60,7 @@ public class SetBodyCompiler : IMethodPolicyHandler
                 }
                 else
                 {
-                    element.Add(new XAttribute("template", template));
+                    element.AddAttribute("template", template);
                 }
             }
 
@@ -78,13 +78,13 @@ public class SetBodyCompiler : IMethodPolicyHandler
                 }
                 else
                 {
-                    element.Add(new XAttribute("xsi-nil", xsiNil));
+                    element.AddAttribute("xsi-nil", xsiNil);
                 }
             }
 
             if (config.ParseDate is { } parseDate)
             {
-                element.Add(new XAttribute("parse-date", parseDate.ToString().ToLowerInvariant()));
+                element.AddAttribute("parse-date", parseDate.ToString().ToLowerInvariant());
             }
         }
 
@@ -111,7 +111,7 @@ public class SetBodyCompiler : IMethodPolicyHandler
         
         if (config.ParseDate is { } parseDate)
         {
-            bodyElement.Add(new XAttribute("parse-date", parseDate.ToString().ToLowerInvariant()));
+            bodyElement.AddAttribute("parse-date", parseDate.ToString().ToLowerInvariant());
         }
         
         element.Add(bodyElement);

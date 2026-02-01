@@ -31,7 +31,7 @@ public class QuotaByKeyCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("quota-by-key");
 
-        element.Add(new XAttribute("counter-key", config.CounterKey.ToXmlValue()));
+        element.AddAttribute("counter-key", config.CounterKey);
 
         bool isCallsAdded = config.Calls is not null;
         bool isBandwidthAdded = config.Bandwidth is not null;
@@ -52,7 +52,7 @@ public class QuotaByKeyCompiler : IMethodPolicyHandler
         element.AddOptionalAttribute("calls", config.Calls);
         element.AddOptionalAttribute("bandwidth", config.Bandwidth);
 
-        element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
+        element.AddAttribute("renewal-period", config.RenewalPeriod);
         element.AddOptionalAttribute("increment-condition", config.IncrementCondition);
         element.AddOptionalAttribute("increment-count", config.IncrementCount);
         element.AddOptionalAttribute("first-period-start", config.FirstPeriodStart);

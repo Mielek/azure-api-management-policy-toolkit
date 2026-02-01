@@ -29,8 +29,8 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("validate-parameters");
 
-        element.Add(new XAttribute("specified-parameter-action", config.SpecifiedParameterAction.ToXmlValue()));
-        element.Add(new XAttribute("unspecified-parameter-action", config.UnspecifiedParameterAction.ToXmlValue()));
+        element.AddAttribute("specified-parameter-action", config.SpecifiedParameterAction);
+        element.AddAttribute("unspecified-parameter-action", config.UnspecifiedParameterAction);
 
         element.AddOptionalAttribute("errors-variable-name", config.ErrorsVariableName);
 
@@ -56,8 +56,8 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
     {
         XElement headersElement = new("headers");
 
-        headersElement.Add(new XAttribute("specified-parameter-action", headers.SpecifiedParameterAction.ToXmlValue()));
-        headersElement.Add(new XAttribute("unspecified-parameter-action", headers.UnspecifiedParameterAction.ToXmlValue()));
+        headersElement.AddAttribute("specified-parameter-action", headers.SpecifiedParameterAction);
+        headersElement.AddAttribute("unspecified-parameter-action", headers.UnspecifiedParameterAction);
 
         AddParameters(headersElement, headers.Parameters);
 
@@ -68,8 +68,8 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
     {
         XElement queryElement = new("query");
 
-        queryElement.Add(new XAttribute("specified-parameter-action", query.SpecifiedParameterAction.ToXmlValue()));
-        queryElement.Add(new XAttribute("unspecified-parameter-action", query.UnspecifiedParameterAction.ToXmlValue()));
+        queryElement.AddAttribute("specified-parameter-action", query.SpecifiedParameterAction);
+        queryElement.AddAttribute("unspecified-parameter-action", query.UnspecifiedParameterAction);
 
         AddParameters(queryElement, query.Parameters);
 
@@ -80,7 +80,7 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
     {
         XElement pathElement = new("path");
 
-        pathElement.Add(new XAttribute("specified-parameter-action", path.SpecifiedParameterAction.ToXmlValue()));
+        pathElement.AddAttribute("specified-parameter-action", path.SpecifiedParameterAction);
 
         AddParameters(pathElement, path.Parameters);
 
@@ -97,8 +97,8 @@ public class ValidateParametersCompiler : IMethodPolicyHandler
         foreach (var param in parameters)
         {
             XElement paramElement = new("parameter");
-            paramElement.Add(new XAttribute("name", param.Name));
-            paramElement.Add(new XAttribute("action", param.Action.ToXmlValue()));
+            paramElement.AddAttribute("name", param.Name);
+            paramElement.AddAttribute("action", param.Action);
             parentElement.Add(paramElement);
         }
     }

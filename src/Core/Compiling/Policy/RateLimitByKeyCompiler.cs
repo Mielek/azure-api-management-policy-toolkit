@@ -31,9 +31,9 @@ public class RateLimitByKeyCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("rate-limit-by-key");
 
-        element.Add(new XAttribute("calls", config.Calls.ToXmlValue()));
-        element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
-        element.Add(new XAttribute("counter-key", config.CounterKey.ToXmlValue()));
+        element.AddAttribute("calls", config.Calls);
+        element.AddAttribute("renewal-period", config.RenewalPeriod);
+        element.AddAttribute("counter-key", config.CounterKey);
         element.AddOptionalAttribute("increment-condition", config.IncrementCondition);
         element.AddOptionalAttribute("increment-count", config.IncrementCount);
         element.AddOptionalAttribute("retry-after-header-name", config.RetryAfterHeaderName);

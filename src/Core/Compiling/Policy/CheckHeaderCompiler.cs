@@ -31,10 +31,10 @@ public class CheckHeaderCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("check-header");
 
-        element.Add(new XAttribute("name", config.Name.ToXmlValue()));
-        element.Add(new XAttribute("failed-check-httpcode", config.FailCheckHttpCode.ToXmlValue()));
-        element.Add(new XAttribute("failed-check-error-message", config.FailCheckErrorMessage.ToXmlValue()));
-        element.Add(new XAttribute("ignore-case", config.IgnoreCase.ToXmlValue()));
+        element.AddAttribute("name", config.Name);
+        element.AddAttribute("failed-check-httpcode", config.FailCheckHttpCode);
+        element.AddAttribute("failed-check-error-message", config.FailCheckErrorMessage);
+        element.AddAttribute("ignore-case", config.IgnoreCase);
 
         var values = config.Values;
         if (values.Count == 0)
@@ -50,7 +50,7 @@ public class CheckHeaderCompiler : IMethodPolicyHandler
 
         foreach (var value in values)
         {
-            element.Add(new XElement("value", value.ToXmlValue()));
+            element.AddElement("value", value);
         }
 
         context.AddPolicy(element);

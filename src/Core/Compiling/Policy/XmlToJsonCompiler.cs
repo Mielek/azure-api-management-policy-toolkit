@@ -31,8 +31,8 @@ public class XmlToJsonCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("xml-to-json");
 
-        element.Add(new XAttribute("kind", config.Kind.ToXmlValue()));
-        element.Add(new XAttribute("apply", config.Apply.ToXmlValue()));
+        element.AddAttribute("kind", config.Kind);
+        element.AddAttribute("apply", config.Apply);
         element.AddOptionalAttribute("consider-accept-header", config.ConsiderAcceptHeader);
         element.AddOptionalAttribute("always-array-child-elements", config.AlwaysArrayChildElements);
 

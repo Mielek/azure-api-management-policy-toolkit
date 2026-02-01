@@ -47,12 +47,12 @@ public class SetBackendServiceCompiler : IMethodPolicyHandler
 
         if (config.BaseUrl is { } baseUrl)
         {
-            element.Add(new XAttribute("base-url", baseUrl.ToXmlValue()));
+            element.AddAttribute("base-url", baseUrl);
         }
 
         if (config.BackendId is { } backendId)
         {
-            element.Add(new XAttribute("backend-id", backendId.ToXmlValue()));
+            element.AddAttribute("backend-id", backendId);
         }
 
         element.AddOptionalAttribute("sf-resolve-condition", config.SfResolveCondition);

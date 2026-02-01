@@ -29,7 +29,7 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         XElement element = new("validate-azure-ad-token");
 
-        element.Add(new XAttribute("tenant-id", config.TenantId.ToXmlValue()));
+        element.AddAttribute("tenant-id", config.TenantId);
 
         element.AddOptionalAttribute("header-name", config.HeaderName);
         element.AddOptionalAttribute("query-parameter-name", config.QueryParameterName);
@@ -72,7 +72,7 @@ public class ValidateAzureAdTokenCompiler : IMethodPolicyHandler
         foreach (var key in decryptionKeys)
         {
             XElement keyElement = new("key");
-            keyElement.Add(new XAttribute("certificate-id", key.CertificateId));
+            keyElement.AddAttribute("certificate-id", key.CertificateId);
             listElement.Add(keyElement);
         }
 

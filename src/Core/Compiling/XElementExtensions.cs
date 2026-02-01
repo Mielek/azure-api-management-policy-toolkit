@@ -51,6 +51,11 @@ public static class XElementExtensions
         element.Add(new XAttribute(attributeName, value));
     }
 
+    public static void AddAttribute(this XElement element, string attributeName, uint value)
+    {
+        element.Add(new XAttribute(attributeName, value));
+    }
+
     /// <summary>
     /// Adds an attribute to the element with the specified name and value.
     /// </summary>
@@ -81,7 +86,7 @@ public static class XElementExtensions
     {
         if (value is { } notNullValue)
         {
-            element.Add(new XAttribute(attributeName, notNullValue.ToXmlValue()));
+            element.AddAttribute(attributeName, notNullValue);
             return true;
         }
 
@@ -103,7 +108,7 @@ public static class XElementExtensions
     {
         if (value is not null)
         {
-            element.Add(new XAttribute(attributeName, value.ToString()!));
+            element.AddAttribute(attributeName, value.ToString()!);
             return true;
         }
 
@@ -160,6 +165,16 @@ public static class XElementExtensions
         string elementName)
     {
         var child = new XElement(elementName);
+        element.Add(child);
+        return child;
+    }
+
+    public static XElement AddElement(
+        this XElement element,
+        string elementName,
+        object[] values)
+    {
+        var child = new XElement(elementName, values);
         element.Add(child);
         return child;
     }

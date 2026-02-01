@@ -18,7 +18,7 @@ public static class GenericCompiler
         XElement listElement = new(listName);
         foreach (var value in values)
         {
-            listElement.Add(new XElement(elementName, value));
+            listElement.AddElement(elementName, value);
         }
 
         element.Add(listElement);
@@ -33,7 +33,7 @@ public static class GenericCompiler
         XElement listElement = new(listName);
         foreach (var value in values)
         {
-            listElement.Add(new XElement(elementName, value.ToXmlValue()));
+            listElement.AddElement(elementName, value);
         }
 
         element.Add(listElement);

@@ -31,8 +31,8 @@ public class RateLimitCompiler : IMethodPolicyHandler
         var config = configResult.Value;
         var element = new XElement("rate-limit");
 
-        element.Add(new XAttribute("calls", config.Calls));
-        element.Add(new XAttribute("renewal-period", config.RenewalPeriod));
+        element.AddAttribute("calls", config.Calls);
+        element.AddAttribute("renewal-period", config.RenewalPeriod);
         element.AddOptionalAttribute("retry-after-header-name", config.RetryAfterHeaderName);
         element.AddOptionalAttribute("retry-after-variable-name", config.RetryAfterVariableName);
         element.AddOptionalAttribute("remaining-calls-header-name", config.RemainingCallsHeaderName);
@@ -92,8 +92,8 @@ public class RateLimitCompiler : IMethodPolicyHandler
             return false;
         }
 
-        element.Add(new XAttribute("calls", entity.Calls));
-        element.Add(new XAttribute("renewal-period", entity.RenewalPeriod));
+        element.AddAttribute("calls", entity.Calls);
+        element.AddAttribute("renewal-period", entity.RenewalPeriod);
 
         return true;
     }

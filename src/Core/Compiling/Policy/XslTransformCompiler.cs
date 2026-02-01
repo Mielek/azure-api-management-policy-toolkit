@@ -37,7 +37,7 @@ public class XslTransformCompiler : IMethodPolicyHandler
             foreach (var param in parameters)
             {
                 var paramElement = new XElement("parameter");
-                paramElement.Add(new XAttribute("name", param.Name));
+                paramElement.AddAttribute("name", param.Name);
                 paramElement.Value = param.Value.ToXmlValue();
                 element.Add(paramElement);
             }
