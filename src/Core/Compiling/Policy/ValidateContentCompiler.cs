@@ -4,10 +4,10 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
@@ -17,7 +17,7 @@ public class ValidateContentCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalValidateContentCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ValidateContentConfig>(
             node, context, "validate-content");
 
         if (!configResult.IsSuccess)
@@ -35,150 +35,94 @@ public class ValidateContentCompiler : IMethodPolicyHandler
 
         if (config.ErrorsVariableName is { } errorsVar)
         {
-            element.Add(new XAttribute("errors-variable-name", errorsVar.ToXmlValue()));
+            element.Add(new XAttribute("errors-variable-name", errorsVar));
         }
 
-        // Handle ContentTypeMap
-        if (config.ContentTypeMap is { } contentTypeMapValue)
+        if (config.ContentTypeMap is { } contentTypeMap)
         {
-            HandleContentTypeMap(context, contentTypeMapValue, element);
+            HandleContentTypeMap(contentTypeMap, element);
         }
 
-        // Handle ContentTypes
-        if (config.Contents is { } contentTypesValue)
+        if (config.Contents is { } contents)
         {
-            HandleContents(context, contentTypesValue, element);
+            HandleContents(contents, element);
         }
 
         context.AddPolicy(element);
     }
 
-    private static void HandleContentTypeMap(IDocumentCompilationContext context, InitializerValue contentTypeMapValue,
-        XElement parentElement)
+    private static void HandleContentTypeMap(CompiledConfigs.ContentTypeMapConfig contentTypeMap, XElement parentElement)
     {
-        if (!contentTypeMapValue.TryGetValues<ContentTypeMapConfig>(out var mapConfigValues))
+        XElement mapElement = new("content-type-map");
+        
+        if (contentTypeMap.AnyContentTypeValue is { } anyContentType)
         {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                contentTypeMapValue.Node.GetLocation(),
-                "validate-content.content-type-map",
-                nameof(ContentTypeMapConfig)
-            ));
-            return;
+            mapElement.Add(new XAttribute("any-content-type-value", anyContentType));
+        }
+        
+        if (contentTypeMap.MissingContentTypeValue is { } missingContentType)
+        {
+            mapElement.Add(new XAttribute("missing-content-type-value", missingContentType));
         }
 
-        XElement mapElement = new("content-type-map");
-        mapElement.AddAttribute(mapConfigValues, nameof(ContentTypeMapConfig.AnyContentTypeValue),
-            "any-content-type-value");
-        mapElement.AddAttribute(mapConfigValues, nameof(ContentTypeMapConfig.MissingContentTypeValue),
-            "missing-content-type-value");
-
-        // Handle content type mappings
-        if (mapConfigValues.TryGetValue(nameof(ContentTypeMapConfig.Types), out var typesValue))
+        if (contentTypeMap.Types is { } types)
         {
-            HandleTypeMap(context, typesValue, mapElement);
+            foreach (var typeMap in types)
+            {
+                XElement typeElement = new("type");
+                typeElement.Add(new XAttribute("to", typeMap.To));
+                
+                if (typeMap.From is { } from)
+                {
+                    typeElement.Add(new XAttribute("from", from));
+                }
+                
+                if (typeMap.When is { } when)
+                {
+                    typeElement.Add(new XAttribute("when", when.ToString().ToLowerInvariant()));
+                }
+
+                mapElement.Add(typeElement);
+            }
         }
 
         parentElement.Add(mapElement);
     }
 
-    private static void HandleTypeMap(IDocumentCompilationContext context, InitializerValue typesValue,
-        XElement mapElement)
+    private static void HandleContents(IReadOnlyList<CompiledConfigs.ValidateContent> contents, XElement parentElement)
     {
-        foreach (var typeValue in typesValue.UnnamedValues ?? [])
+        foreach (var validateContent in contents)
         {
-            if (!typeValue.TryGetValues<ContentTypeMap>(out var typeMapValues))
+            XElement contentElement = new("content");
+            contentElement.Add(new XAttribute("validate-as", validateContent.ValidateAs));
+            contentElement.Add(new XAttribute("action", validateContent.Action));
+            
+            if (validateContent.Type is { } type)
             {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    typeValue.Node.GetLocation(),
-                    "validate-content.content-type-map.type",
-                    nameof(ContentTypeMap)
-                ));
-                continue;
+                contentElement.Add(new XAttribute("type", type));
+            }
+            
+            if (validateContent.SchemaId is { } schemaId)
+            {
+                contentElement.Add(new XAttribute("schema-id", schemaId));
+            }
+            
+            if (validateContent.SchemaRef is { } schemaRef)
+            {
+                contentElement.Add(new XAttribute("schema-ref", schemaRef));
+            }
+            
+            if (validateContent.AllowAdditionalProperties is { } allowAdditional)
+            {
+                contentElement.Add(new XAttribute("allow-additional-properties", allowAdditional.ToString().ToLowerInvariant()));
+            }
+            
+            if (validateContent.CaseInsensitivePropertyNames is { } caseInsensitive)
+            {
+                contentElement.Add(new XAttribute("case-insensitive-property-names", caseInsensitive.ToString().ToLowerInvariant()));
             }
 
-            XElement typeElement = new("type");
-            if (!typeElement.AddAttribute(typeMapValues, nameof(ContentTypeMap.To), "to"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    typeValue.Node.GetLocation(),
-                    "validate-content.content-type-map.type",
-                    nameof(ContentTypeMap.To)
-                ));
-                continue;
-            }
-
-            typeElement.AddAttribute(typeMapValues, nameof(ContentTypeMap.From), "from");
-            typeElement.AddAttribute(typeMapValues, nameof(ContentTypeMap.When), "when");
-
-            mapElement.Add(typeElement);
+            parentElement.Add(contentElement);
         }
-    }
-
-    private static void HandleContents(IDocumentCompilationContext context, InitializerValue contentTypesValue,
-        XElement parentElement)
-    {
-        foreach (var contentTypeValue in contentTypesValue.UnnamedValues ?? [])
-        {
-            if (!contentTypeValue.TryGetValues<ValidateContent>(out var validateContentTypeValues))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    contentTypeValue.Node.GetLocation(),
-                    "validate-content.content",
-                    nameof(ValidateContent)
-                ));
-                continue;
-            }
-
-            XElement contentTypeElement = new("content");
-            if (!contentTypeElement.AddAttribute(validateContentTypeValues, nameof(ValidateContent.ValidateAs),
-                    "validate-as"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    contentTypeValue.Node.GetLocation(),
-                    "validate-content.content",
-                    nameof(ValidateContent.ValidateAs)
-                ));
-                continue;
-            }
-
-            if (!contentTypeElement.AddAttribute(validateContentTypeValues, nameof(ValidateContent.Action),
-                    "action"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    contentTypeValue.Node.GetLocation(),
-                    "validate-content.content",
-                    nameof(ValidateContent.Action)
-                ));
-                continue;
-            }
-
-            contentTypeElement.AddAttribute(validateContentTypeValues, nameof(ValidateContent.Type), "type");
-            contentTypeElement.AddAttribute(validateContentTypeValues, nameof(ValidateContent.SchemaId),
-                "schema-id");
-            contentTypeElement.AddAttribute(validateContentTypeValues, nameof(ValidateContent.SchemaRef),
-                "schema-ref");
-            contentTypeElement.AddAttribute(validateContentTypeValues,
-                nameof(ValidateContent.AllowAdditionalProperties), "allow-additional-properties");
-            contentTypeElement.AddAttribute(validateContentTypeValues,
-                nameof(ValidateContent.CaseInsensitivePropertyNames), "case-insensitive-property-names");
-
-            parentElement.Add(contentTypeElement);
-        }
-    }
-
-    private sealed class LocalValidateContentCompiledConfig
-    {
-        public required ExpressionValue<string> UnspecifiedContentTypeAction { get; init; }
-        public required ExpressionValue<int> MaxSize { get; init; }
-        public required ExpressionValue<string> SizeExceededAction { get; init; }
-        public ExpressionValue<string>? ErrorsVariableName { get; init; }
-        public InitializerValue? ContentTypeMap { get; init; }
-        public InitializerValue? Contents { get; init; }
     }
 }

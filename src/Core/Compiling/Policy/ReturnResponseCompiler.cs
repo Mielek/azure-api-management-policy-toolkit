@@ -7,6 +7,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class ReturnResponseCompiler : IMethodPolicyHandler
@@ -15,7 +17,7 @@ public class ReturnResponseCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalReturnResponseCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.ReturnResponseConfig>(
             node, context, "return-response");
 
         if (!configResult.IsSuccess)
@@ -29,32 +31,24 @@ public class ReturnResponseCompiler : IMethodPolicyHandler
 
         if (config.ResponseVariableName is { } responseVar)
         {
-            element.Add(new XAttribute("response-variable-name", responseVar.ToXmlValue()));
+            element.Add(new XAttribute("response-variable-name", responseVar));
         }
 
-        if (config.Status is { } statusConfig)
+        if (config.Status is { } status)
         {
-            SetStatusCompiler.HandleStatus(context, element, statusConfig);
+            SetStatusCompiler.HandleStatus(element, status);
         }
 
         if (config.Headers is { } headers)
         {
-            BaseSetHeaderCompiler.HandleHeaders(context, element, headers);
+            BaseSetHeaderCompiler.HandleHeaders(element, headers);
         }
 
         if (config.Body is { } body)
         {
-            SetBodyCompiler.HandleBody(context, element, body);
+            SetBodyCompiler.HandleBody(element, body);
         }
 
         context.AddPolicy(element);
-    }
-
-    private sealed class LocalReturnResponseCompiledConfig
-    {
-        public ExpressionValue<string>? ResponseVariableName { get; init; }
-        public InitializerValue? Status { get; init; }
-        public InitializerValue? Headers { get; init; }
-        public InitializerValue? Body { get; init; }
     }
 }

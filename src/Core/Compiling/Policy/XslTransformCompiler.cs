@@ -18,15 +18,9 @@ public class XslTransformCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.XslTransform);
 
-    private sealed class LocalXslTransformCompiledConfig
-    {
-        public required ExpressionValue<string> StyleSheet { get; init; }
-        public InitializerValue? Parameters { get; init; }
-    }
-
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalXslTransformCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.XslTransformConfig>(
             node, context, "xsl-transform");
 
         if (!configResult.IsSuccess)
@@ -40,7 +34,13 @@ public class XslTransformCompiler : IMethodPolicyHandler
 
         if (config.Parameters is { } parameters)
         {
-            HandleParameters(context, parameters, element);
+            foreach (var param in parameters)
+            {
+                var paramElement = new XElement("parameter");
+                paramElement.Add(new XAttribute("name", param.Name));
+                paramElement.Value = param.Value.ToXmlValue();
+                element.Add(paramElement);
+            }
         }
 
         try
@@ -60,38 +60,5 @@ public class XslTransformCompiler : IMethodPolicyHandler
         }
 
         context.AddPolicy(element);
-    }
-
-    private static void HandleParameters(IDocumentCompilationContext context, InitializerValue parametersValue,
-        XElement parentElement)
-    {
-        foreach (var paramValue in parametersValue.UnnamedValues ?? [])
-        {
-            if (paramValue.Node is not ExpressionSyntax paramExpression)
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    paramValue.Node.GetLocation(),
-                    "xsl-transform.parameter",
-                    nameof(XslTransformParameter)
-                ));
-                continue;
-            }
-
-            var configResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.XslTransformParameter>(
-                paramExpression, context, "xsl-transform.parameter");
-
-            if (!configResult.IsSuccess)
-            {
-                configResult.ReportAll(context);
-                continue;
-            }
-
-            var config = configResult.Value;
-            var paramElement = new XElement("parameter");
-            paramElement.Add(new XAttribute("name", config.Name.ToXmlValue()));
-            paramElement.Value = config.Value.ToXmlValue();
-            parentElement.Add(paramElement);
-        }
     }
 }

@@ -4,9 +4,7 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
@@ -17,22 +15,9 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
 {
     public string MethodName => nameof(IInboundContext.InvokeDarpBinding);
 
-    private sealed class LocalInvokeDarpBindingCompiledConfig
-    {
-        public required ExpressionValue<string> Name { get; init; }
-        public ExpressionValue<string>? Operation { get; init; }
-        public ExpressionValue<bool>? IgnoreError { get; init; }
-        public ExpressionValue<string>? ResponseVariableName { get; init; }
-        public ExpressionValue<int>? Timeout { get; init; }
-        public ExpressionValue<string>? Template { get; init; }
-        public ExpressionValue<string>? ContentType { get; init; }
-        public InitializerValue? MetaData { get; init; }
-        public ExpressionValue<string>? Data { get; init; }
-    }
-
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalInvokeDarpBindingCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.InvokeDarpBindingConfig>(
             node, context, "invoke-darp-binding");
 
         if (!configResult.IsSuccess)
@@ -48,7 +33,7 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
 
         if (config.Operation is { } operation)
         {
-            element.Add(new XAttribute("operation", operation.ToXmlValue()));
+            element.Add(new XAttribute("operation", operation));
         }
 
         if (config.IgnoreError is { } ignoreError)
@@ -58,7 +43,7 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
 
         if (config.ResponseVariableName is { } responseVariableName)
         {
-            element.Add(new XAttribute("response-variable-name", responseVariableName.ToXmlValue()));
+            element.Add(new XAttribute("response-variable-name", responseVariableName));
         }
 
         if (config.Timeout is { } timeout)
@@ -68,17 +53,25 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
 
         if (config.Template is { } template)
         {
-            element.Add(new XAttribute("template", template.ToXmlValue()));
+            element.Add(new XAttribute("template", template));
         }
 
         if (config.ContentType is { } contentType)
         {
-            element.Add(new XAttribute("content-type", contentType.ToXmlValue()));
+            element.Add(new XAttribute("content-type", contentType));
         }
 
         if (config.MetaData is { } metaData)
         {
-            HandleMetaData(context, metaData, element);
+            var metadataElement = new XElement("metadata");
+            foreach (var item in metaData)
+            {
+                var itemElement = new XElement("item");
+                itemElement.Add(new XAttribute("key", item.Key));
+                itemElement.Value = item.Value.ToXmlValue();
+                metadataElement.Add(itemElement);
+            }
+            element.Add(metadataElement);
         }
 
         if (config.Data is { } data)
@@ -87,47 +80,5 @@ public class InvokeDarpBindingCompiler : IMethodPolicyHandler
         }
 
         context.AddPolicy(element);
-    }
-
-    private static void HandleMetaData(IDocumentCompilationContext context, InitializerValue metaDataValue,
-        XElement parentElement)
-    {
-        if (metaDataValue.UnnamedValues is null || metaDataValue.UnnamedValues.Count == 0)
-        {
-            return;
-        }
-
-        var element = new XElement("metadata");
-
-        foreach (var item in metaDataValue.UnnamedValues)
-        {
-            if (item.Node is not ExpressionSyntax itemExpression)
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                    item.Node.GetLocation(),
-                    "invoke-darp-binding.metadata",
-                    nameof(DarpMetaData)
-                ));
-                continue;
-            }
-
-            var itemConfigResult = CompiledConfigExtractor.ExtractFromExpression<CompiledConfigs.DarpMetaData>(
-                itemExpression, context, "invoke-darp-binding.metadata.item");
-
-            if (!itemConfigResult.IsSuccess)
-            {
-                itemConfigResult.ReportAll(context);
-                continue;
-            }
-
-            var itemConfig = itemConfigResult.Value;
-            var metaDataElement = new XElement("item");
-            metaDataElement.Add(new XAttribute("key", itemConfig.Key.ToXmlValue()));
-            metaDataElement.Value = itemConfig.Value.ToXmlValue();
-            element.Add(metaDataElement);
-        }
-
-        parentElement.Add(element);
     }
 }

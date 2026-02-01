@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class SetBodyCompiler : IMethodPolicyHandler
@@ -88,6 +90,40 @@ public class SetBodyCompiler : IMethodPolicyHandler
         }
 
         context.AddPolicy(element);
+    }
+
+    public static void HandleBody(XElement element, CompiledConfigs.BodyConfig config)
+    {
+        // Content is required but nullable ExpressionValue<object>?
+        // For required properties, we know the struct is set, so .Value is safe
+        if (!config.Content.HasValue)
+        {
+            return;
+        }
+        
+        var content = config.Content.Value;
+        var contentValue = content.IsExpression 
+            ? content.Expression 
+            : content.ConstantValue?.ToString() ?? string.Empty;
+        
+        var bodyElement = new XElement("set-body", contentValue);
+        
+        if (config.Template is { } template)
+        {
+            bodyElement.Add(new XAttribute("template", template));
+        }
+        
+        if (config.XsiNil is { } xsiNil)
+        {
+            bodyElement.Add(new XAttribute("xsi-nil", xsiNil));
+        }
+        
+        if (config.ParseDate is { } parseDate)
+        {
+            bodyElement.Add(new XAttribute("parse-date", parseDate.ToString().ToLowerInvariant()));
+        }
+        
+        element.Add(bodyElement);
     }
 
     public static void HandleBody(IDocumentCompilationContext context, XElement element, InitializerValue body)

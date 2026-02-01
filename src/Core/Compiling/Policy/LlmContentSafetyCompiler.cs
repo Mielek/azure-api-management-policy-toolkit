@@ -4,10 +4,10 @@
 using System.Xml.Linq;
 
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
-using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
 using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
-using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
 
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
@@ -17,7 +17,7 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalLlmContentSafetyCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.LlmContentSafetyConfig>(
             node, context, "llm-content-safety");
 
         if (!configResult.IsSuccess)
@@ -36,93 +36,51 @@ public class LlmContentSafetyCompiler : IMethodPolicyHandler
             element.Add(new XAttribute("shield-prompt", shieldPrompt.ToXmlValue()));
         }
 
-        if (config.Categories is { } categoriesValue)
+        if (config.Categories is { } categories)
         {
-            HandleCategories(context, categoriesValue, element);
+            HandleCategories(categories, element);
         }
 
-        if (config.BlockLists is { } blockListsValue)
+        if (config.BlockLists is { } blockLists)
         {
-            HandleBlockLists(blockListsValue, element);
+            HandleBlockLists(blockLists, element);
         }
 
         context.AddPolicy(element);
     }
 
-    private static void HandleCategories(IDocumentCompilationContext context, InitializerValue categoriesValue,
-        XElement parent)
+    private static void HandleCategories(CompiledConfigs.ContentSafetyCategories categories, XElement parent)
     {
-        if (!categoriesValue.TryGetValues<ContentSafetyCategories>(out var categories))
-        {
-            return;
-        }
-
         var categoriesElement = new XElement("categories");
 
-        categoriesElement.AddAttribute(categories, nameof(ContentSafetyCategories.OutputType), "output-type");
-
-        if (categories.TryGetValue(nameof(ContentSafetyCategories.Categories), out var categoryValues))
+        if (categories.OutputType is { } outputType)
         {
-            HandleCategory(context, categoryValues, categoriesElement);
+            categoriesElement.Add(new XAttribute("output-type", outputType.ToXmlValue()));
+        }
+
+        if (categories.Categories is { } categoryList)
+        {
+            foreach (var category in categoryList)
+            {
+                var categoryElement = new XElement("category");
+                categoryElement.Add(new XAttribute("name", category.Name.ToXmlValue()));
+                categoryElement.Add(new XAttribute("threshold", category.Threshold.ToXmlValue()));
+                categoriesElement.Add(categoryElement);
+            }
         }
 
         parent.Add(categoriesElement);
     }
 
-    private static void HandleCategory(IDocumentCompilationContext context, InitializerValue categoryValues,
-        XElement categoriesElement)
+    private static void HandleBlockLists(CompiledConfigs.ContentSafetyBlockLists blockLists, XElement element)
     {
-        foreach (var categoryValue in categoryValues.UnnamedValues ?? [])
-        {
-            if (!categoryValue.TryGetValues<ContentSafetyCategory>(out var category))
-            {
-                continue;
-            }
-
-            var categoryElement = new XElement("category");
-            if (!categoryElement.AddAttribute(category, nameof(ContentSafetyCategory.Name), "name") ||
-                !categoryElement.AddAttribute(category, nameof(ContentSafetyCategory.Threshold), "threshold"))
-            {
-                context.Report(Diagnostic.Create(
-                    CompilationErrors.RequiredParameterNotDefined,
-                    categoryValue.Node.GetLocation(),
-                    "llm-content-safety.category",
-                    nameof(ContentSafetyCategory)
-                ));
-                continue;
-            }
-
-            categoriesElement.Add(categoryElement);
-        }
-    }
-
-    private static void HandleBlockLists(InitializerValue blockListsValue, XElement element)
-    {
-        if (!blockListsValue.TryGetValues<ContentSafetyBlockLists>(out var blockLists))
-        {
-            return;
-        }
-
-        if (!blockLists.TryGetValue(nameof(ContentSafetyBlockLists.Ids), out var idsValue))
-        {
-            return;
-        }
-
         var blockListsElement = new XElement("block-lists");
 
-        foreach (var idValue in idsValue.UnnamedValues ?? [])
+        foreach (var id in blockLists.Ids)
         {
-            blockListsElement.Add(new XElement("id", idValue.Value));
+            blockListsElement.Add(new XElement("id", id.ToXmlValue()));
         }
 
         element.Add(blockListsElement);
-    }
-
-    private sealed class LocalLlmContentSafetyCompiledConfig
-    {
-        public required ExpressionValue<string> BackendId { get; init; }
-        public ExpressionValue<bool>? ShieldPrompt { get; init; }
-        public InitializerValue? Categories { get; init; }
-        public InitializerValue? BlockLists { get; init; }
     }
 }

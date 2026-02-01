@@ -37,33 +37,11 @@ public class SetStatusCompiler : IMethodPolicyHandler
         context.AddPolicy(statusElement);
     }
 
-    public static void HandleStatus(IDocumentCompilationContext context, XElement element, InitializerValue status)
+    public static void HandleStatus(XElement element, CompiledConfigs.StatusConfig status)
     {
-        if (!status.TryGetValues<StatusConfig>(out var config))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                status.Node.GetLocation(),
-                $"{element.Name}.set-status",
-                nameof(StatusConfig)
-            ));
-            return;
-        }
-
         var statusElement = new XElement("set-status");
-
-        if (!statusElement.AddAttribute(config, nameof(StatusConfig.Code), "code"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                status.Node.GetLocation(),
-                $"{element.Name}.set-status",
-                nameof(StatusConfig.Code)
-            ));
-            return;
-        }
-
-        statusElement.AddAttribute(config, nameof(StatusConfig.Reason), "reason");
+        statusElement.Add(new XAttribute("code", status.Code.ToXmlValue()));
+        statusElement.Add(new XAttribute("reason", status.Reason.ToXmlValue()));
         element.Add(statusElement);
     }
 }

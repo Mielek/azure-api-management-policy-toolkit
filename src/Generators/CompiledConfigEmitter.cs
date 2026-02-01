@@ -119,6 +119,21 @@ internal class CompiledConfigEmitter
 
             return prop.IsNullable ? $"{unionTypeName}?" : unionTypeName;
         }
+        
+        // For nested compiled configs (non-collection), use the compiled config type
+        if (prop.IsNestedCompiledConfig)
+        {
+            var typeName = prop.TypeFullName;
+            var lastDot = typeName.LastIndexOf('.');
+            var simpleName = lastDot >= 0 ? typeName.Substring(lastDot + 1) : typeName;
+            // Remove "global::" prefix if present
+            if (simpleName.StartsWith("global::", StringComparison.Ordinal))
+            {
+                simpleName = simpleName.Substring(8);
+            }
+            var compiledConfigTypeName = $"{CompiledConfigNamespace}.{simpleName}";
+            return prop.IsNullable ? $"{compiledConfigTypeName}?" : compiledConfigTypeName;
+        }
 
         // Only wrap in ExpressionValue<T> if [ExpressionAllowed] attribute is present
         if (prop.IsExpressionAllowed)

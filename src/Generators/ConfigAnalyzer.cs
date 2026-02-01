@@ -91,6 +91,9 @@ internal class ConfigAnalyzer
         var isCollection = IsCollectionType(type);
         var collectionElementType = GetCollectionElementType(type);
         var collectionElementIsCompiledConfig = isCollection && IsAuthoringConfigType(GetCollectionElementTypeSymbol(type));
+        
+        // Check if non-collection type is a nested compiled config
+        var isNestedCompiledConfig = !isCollection && IsAuthoringConfigType(underlyingType);
 
         return new PropertyInfo(
             property.Name,
@@ -103,7 +106,8 @@ internal class ConfigAnalyzer
             isCollection,
             collectionElementType,
             collectionElementIsCompiledConfig,
-            isExpressionAllowed
+            isExpressionAllowed,
+            isNestedCompiledConfig
         );
     }
 
@@ -338,5 +342,6 @@ internal record PropertyInfo(
     bool IsCollection,
     string? CollectionElementType,
     bool CollectionElementIsCompiledConfig = false,
-    bool IsExpressionAllowed = false
+    bool IsExpressionAllowed = false,
+    bool IsNestedCompiledConfig = false
 );

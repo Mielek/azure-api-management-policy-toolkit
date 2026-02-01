@@ -9,6 +9,8 @@ using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class QuotaCompiler : IMethodPolicyHandler
@@ -17,7 +19,7 @@ public class QuotaCompiler : IMethodPolicyHandler
 
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        var configResult = CompiledConfigExtractor.Extract<LocalQuotaCompiledConfig>(
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.QuotaConfig>(
             node, context, "quota");
 
         if (!configResult.IsSuccess)
@@ -34,13 +36,13 @@ public class QuotaCompiler : IMethodPolicyHandler
 
         if (config.Calls is { } calls)
         {
-            element.Add(new XAttribute("calls", calls.ToXmlValue()));
+            element.Add(new XAttribute("calls", calls));
             isCallsAdded = true;
         }
 
         if (config.Bandwidth is { } bandwidth)
         {
-            element.Add(new XAttribute("bandwidth", bandwidth.ToXmlValue()));
+            element.Add(new XAttribute("bandwidth", bandwidth));
             isBandwidthAdded = true;
         }
 
@@ -56,46 +58,28 @@ public class QuotaCompiler : IMethodPolicyHandler
             return;
         }
 
-        element.Add(new XAttribute("renewal-period", config.RenewalPeriod.ToXmlValue()));
+        element.Add(new XAttribute("renewal-period", config.RenewalPeriod));
 
         if (config.Apis is { } apis)
         {
-            foreach (var api in apis.UnnamedValues!)
+            foreach (var api in apis)
             {
-                if (api.Type != nameof(ApiQuota))
-                {
-                    context.Report(Diagnostic.Create(
-                        CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                        api.Node.GetLocation(),
-                        "quota.api",
-                        nameof(ApiQuota)
-                    ));
-                    continue;
-                }
-
-                if (!Handle(context, "api", api, out var apiElement))
+                var apiElement = new XElement("api");
+                
+                if (!HandleEntityQuota(context, node, "api", api, apiElement))
                 {
                     continue;
                 }
 
                 element.Add(apiElement);
 
-                if (api.NamedValues!.TryGetValue(nameof(ApiQuota.Operations), out var operations))
+                if (api.Operations is { } operations)
                 {
-                    foreach (var operation in operations.UnnamedValues!)
+                    foreach (var operation in operations)
                     {
-                        if (operation.Type != nameof(OperationQuota))
-                        {
-                            context.Report(Diagnostic.Create(
-                                CompilationErrors.PolicyArgumentIsNotOfRequiredType,
-                                operation.Node.GetLocation(),
-                                "quota.api.operation",
-                                nameof(OperationQuota)
-                            ));
-                            continue;
-                        }
-
-                        if (Handle(context, "operation", operation, out var operationElement))
+                        var operationElement = new XElement("operation");
+                        
+                        if (HandleEntityQuota(context, node, "operation", operation, operationElement))
                         {
                             apiElement.Add(operationElement);
                         }
@@ -107,35 +91,61 @@ public class QuotaCompiler : IMethodPolicyHandler
         context.AddPolicy(element);
     }
 
-    private bool Handle(IDocumentCompilationContext context, string name, InitializerValue value, out XElement element)
+    private bool HandleEntityQuota(
+        IDocumentCompilationContext context, 
+        InvocationExpressionSyntax node,
+        string elementName, 
+        CompiledConfigs.EntityQuotaConfig entity, 
+        XElement element)
     {
-        element = new XElement(name);
-        var values = value.NamedValues!;
+        var isNameAdded = false;
+        var isIdAdded = false;
 
-        var isNameAdded = element.AddAttribute(values, nameof(EntityQuotaConfig.Name), "name");
-        var isIdAdded = element.AddAttribute(values, nameof(EntityQuotaConfig.Id), "id");
+        if (entity.Name is { } name)
+        {
+            element.Add(new XAttribute("name", name));
+            isNameAdded = true;
+        }
+
+        if (entity.Id is { } id)
+        {
+            element.Add(new XAttribute("id", id));
+            isIdAdded = true;
+        }
 
         if (!isNameAdded && !isIdAdded)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.AtLeastOneOfTwoShouldBeDefined,
-                value.Node.GetLocation(),
-                name,
+                node.GetLocation(),
+                elementName,
                 nameof(EntityQuotaConfig.Name),
                 nameof(EntityQuotaConfig.Id)
             ));
             return false;
         }
 
-        var isCallsAdded = element.AddAttribute(values, nameof(EntityQuotaConfig.Calls), "calls");
-        var isBandwidthAdded = element.AddAttribute(values, nameof(EntityQuotaConfig.Bandwidth), "bandwidth");
+        var isCallsAdded = false;
+        var isBandwidthAdded = false;
+
+        if (entity.Calls is { } calls)
+        {
+            element.Add(new XAttribute("calls", calls));
+            isCallsAdded = true;
+        }
+
+        if (entity.Bandwidth is { } bandwidth)
+        {
+            element.Add(new XAttribute("bandwidth", bandwidth));
+            isBandwidthAdded = true;
+        }
 
         if (!isCallsAdded && !isBandwidthAdded)
         {
             context.Report(Diagnostic.Create(
                 CompilationErrors.AtLeastOneOfTwoShouldBeDefined,
-                value.Node.GetLocation(),
-                name,
+                node.GetLocation(),
+                elementName,
                 nameof(EntityQuotaConfig.Calls),
                 nameof(EntityQuotaConfig.Bandwidth)
             ));
@@ -143,13 +153,5 @@ public class QuotaCompiler : IMethodPolicyHandler
         }
 
         return true;
-    }
-
-    private sealed class LocalQuotaCompiledConfig
-    {
-        public ExpressionValue<int>? Calls { get; init; }
-        public ExpressionValue<int>? Bandwidth { get; init; }
-        public required ExpressionValue<int> RenewalPeriod { get; init; }
-        public InitializerValue? Apis { get; init; }
     }
 }

@@ -71,6 +71,31 @@ public abstract class BaseSetHeaderCompiler : IMethodPolicyHandler
         context.AddPolicy(element);
     }
 
+    public static void HandleHeaders(XElement root, IReadOnlyList<CompiledConfigs.HeaderConfig> headers)
+    {
+        foreach (var config in headers)
+        {
+            var headerElement = new XElement("set-header");
+            
+            headerElement.Add(new XAttribute("name", config.Name.ToXmlValue()));
+            
+            if (config.ExistsAction is { } existsAction)
+            {
+                headerElement.Add(new XAttribute("exists-action", existsAction.ToXmlValue()));
+            }
+
+            if (config.Values is not null)
+            {
+                foreach (var value in config.Values)
+                {
+                    headerElement.Add(new XElement("value", value.ToXmlValue()));
+                }
+            }
+
+            root.Add(headerElement);
+        }
+    }
+
     public static void HandleHeaders(IDocumentCompilationContext context, XElement root, InitializerValue headers)
     {
         foreach (var header in headers.UnnamedValues!)
