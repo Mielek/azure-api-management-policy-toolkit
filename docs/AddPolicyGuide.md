@@ -50,6 +50,35 @@ We recommend using existing policies as detailed examples, such as `RateLimit` o
   }
 ```
 
+> **Note:** Config classes in the `Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring` namespace are automatically discovered by the source generator. No additional attributes are required to register your config for compilation.
+
+#### Source Generation (Automatic)
+
+The toolkit uses a **source generator** (`PolicyConfigGenerator`) that automatically creates "compiled config" classes for policy compilation. Here's what happens automatically when you add a config:
+
+1. **Discovery**: Any `record` in the `Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring` namespace (or sub-namespaces) is automatically discovered.
+
+2. **Compiled Config Generation**: For each config, a corresponding class is generated in the `Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs` namespace with the same name.
+
+3. **Property Transformation**:
+   - Properties with `[ExpressionAllowed]` are wrapped in `ExpressionValue<T>` to support policy expressions
+   - Properties without `[ExpressionAllowed]` remain as their original type
+   - Collections are transformed to use `ExpressionValue<T>` for their elements when applicable
+   - Nested config types are transformed to their compiled equivalents
+
+**Example**: For the authoring config above, the generator produces:
+
+```csharp
+// Auto-generated in Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs
+public sealed class YourPolicyConfig
+{
+    public required ExpressionValue<string> Property { get; init; }
+    public ExpressionValue<int>? OptionalProperty { get; init; }
+}
+```
+
+This generated class is used by the compiler to handle both constant values and policy expressions seamlessly.
+
 ### Enable using in respective section or fragment
 
 - Add a method signature to section context interfaces in which policy is avaliable (e.g. `src/Authoring/IInboundContext.cs`).
@@ -73,13 +102,23 @@ We recommend using existing policies as detailed examples, such as `RateLimit` o
   - Make sure that the class is `public` and in `Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy` namespace.
     This is required for the automatic adding your policy compiler to the compilation.
   - Implement the `Handle` method to extract parameters from the method invocation and construct the XML element.
-  - Use `TryExtractingConfigParameter<T>` to extract the config object into initialization object.
-  - Use `AddAttribute` extension method to add attributes to the XML element.
-  - Report diagnostics for missing required parameters using `context.ReportDiagnostic`.
-    For avaliable errors see `CompilationErrors.cs` file.
-  - For complex policies with sub elements, refer to existing compilers for guidance (eg. RateLimitCompiler).
+  - Use `CompiledConfigExtractor.Extract<T>` to extract the compiled config from the method invocation.
+  - Use `AddAttribute` extension method for required attributes and `AddOptionalAttribute` for optional ones.
+  - Report diagnostics for missing required parameters using `context.Report`.
+    For available errors see `CompilationErrors.cs` file.
+  - For complex policies with sub-elements, refer to existing compilers for guidance (e.g., `RateLimitCompiler`, `CheckHeaderCompiler`).
 
 ```csharp
+using System.Xml.Linq;
+
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Authoring;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Diagnostics;
+using Microsoft.Azure.ApiManagement.PolicyToolkit.Results;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
+using CompiledConfigs = Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Configs;
+
 namespace Microsoft.Azure.ApiManagement.PolicyToolkit.Compiling.Policy;
 
 public class YourPolicyCompiler : IMethodPolicyHandler
@@ -88,25 +127,24 @@ public class YourPolicyCompiler : IMethodPolicyHandler
     
     public void Handle(IDocumentCompilationContext context, InvocationExpressionSyntax node)
     {
-        if (!node.TryExtractingConfigParameter<YourPolicyConfig>(context, "your-policy", out var values))
+        // Extract the compiled config from the method invocation
+        var configResult = CompiledConfigExtractor.Extract<CompiledConfigs.YourPolicyConfig>(
+            node, context, "your-policy");
+
+        if (!configResult.IsSuccess)
         {
+            configResult.ReportAll(context);
             return;
         }
 
+        var config = configResult.Value;
         var element = new XElement("your-policy");
 
-        if (!element.AddAttribute(values, nameof(YourPolicyConfig.Property), "propery"))
-        {
-            context.Report(Diagnostic.Create(
-                CompilationErrors.RequiredParameterNotDefined,
-                node.GetLocation(),
-                "your-policy",
-                nameof(YourPolicyConfig.Property)
-            ));
-            return;
-        }
+        // Add required attribute
+        element.AddAttribute("property", config.Property);
 
-        element.AddAttribute(values, nameof(YourPolicyConfig.OptionalProperty), "optional-property");
+        // Add optional attribute
+        element.AddOptionalAttribute("optional-property", config.OptionalProperty);
 
         context.AddPolicy(element);
     }
