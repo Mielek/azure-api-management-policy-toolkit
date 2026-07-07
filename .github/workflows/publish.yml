@@ -1,0 +1,67 @@
+# Publishes the toolkit's NuGet packages to nuget.org using Trusted Publishing (OIDC).
+# https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing
+#
+# nuget.org Trusted Publishing policy to configure (case-insensitive):
+#   Repository Owner: Azure
+#   Repository:       azure-api-management-policy-toolkit
+#   Workflow File:    publish.yml
+#   Environment:      release   (optional; matches the "environment:" below)
+#
+# No long-lived NuGet API key is stored. GitHub issues a short-lived OIDC token,
+# NuGet/login exchanges it for a temporary API key (valid ~1 hour) used to push.
+name: Publish
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Optional: remove if your Trusted Publishing policy does not set an environment.
+    environment: release
+    permissions:
+      contents: read
+      id-token: write  # enable GitHub OIDC token issuance for this job
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build
+
+      - name: Pack
+        run: dotnet pack --configuration Release --no-build --output ${{ github.workspace }}/output
+
+      # Get a short-lived NuGet API key (OIDC -> temp API key), requested just before push.
+      - name: NuGet login (OIDC -> temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          # Your nuget.org username (profile name), NOT your email address.
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: NuGet push
+        run: >-
+          dotnet nuget push
+          "${{ github.workspace }}/output/Microsoft.Azure.ApiManagement.PolicyToolkit.*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
